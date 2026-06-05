@@ -1,0 +1,21 @@
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/swing/?$", "destination": "/swing-index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/generate-signal",
+      "schedule": "0 13 * * 1-5"
+    },
+    {
+      "path": "/api/swing-generate-signal?session=NY",
+      "schedule": "0 13 * * 1-5"
+    },
+    {
+      "path": "/api/swing-generate-signal?session=ASIA",
+      "schedule": "0 21 * * 1-5"
+    }
+  ]
+}
+
