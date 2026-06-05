@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bankroll Algo | S&P 500 Daily Signal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Preview Banner -->
+<div class="preview-banner" id="preview-banner">
+  <i class="ti ti-lock"></i>
+  PREVIEW MODE — SENSITIVE DETAILS ARE HIDDEN.
+  <button class="unlock-btn" onclick="openUnlock()">UNLOCK ACCESS</button>
+</div>
+
+<!-- Unlock Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeUnlock()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-lock-open" style="color:#534AB7"></i> Enter Access Code</div>
+      <button class="modal-close" onclick="closeUnlock()"><i class="ti ti-x"></i></button>
+    </div>
+    <p class="modal-sub">Enter your member password to unlock Take Profit, Stop Loss, and full confluences.</p>
+    <input type="password" id="pw-input" class="pw-input" placeholder="Enter password..." onkeydown="if(event.key==='Enter')checkPassword()">
+    <div class="pw-error" id="pw-error">Incorrect password. Try again.</div>
+    <button class="pw-submit" onclick="checkPassword()">
+      <span id="pw-btn-text">Unlock</span>
+    </button>
+  </div>
+</div>
+
+<!-- Main Container -->
+<div class="container">
+
+  <!-- Header -->
+  <div class="header-bar">
+    <div class="logo-icon"><i class="ti ti-currency-dollar"></i></div>
+    <div class="header-info">
+      <div class="header-name">BANKROLL ALGO</div>
+      <div class="header-sub">S&P 500 · Daily Signal</div>
+    </div>
+    <div class="header-perf">
+      <div class="perf-label">June 2026 Performance</div>
+      <div class="perf-badges">
+        <span class="badge-w" id="w-badge">2W</span>
+        <span class="badge-l" id="l-badge">1L</span>
+        <span class="perf-wr-label">Win Rate</span>
+      </div>
+    </div>
+    <div class="header-bar-right">
+      <div class="win-bar-wrap">
+        <div class="win-bar-bg"><div class="win-bar-fill" id="win-bar" style="width:67%"></div></div>
+        <span class="win-pct" id="win-pct-txt">67%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Access Badge -->
+  <div class="access-row">
+    <div class="access-badge" id="access-badge">
+      <i class="ti ti-eye-off"></i> Preview Mode
+    </div>
+    <div class="signal-time" id="signal-time"></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('signal')">Signal</div>
+    <div class="tab" onclick="switchTab('performance')">Performance</div>
+    <div class="tab" onclick="switchTab('market')">Market Data</div>
+    <div class="tab" onclick="switchTab('journal')">Journal</div>
+  </div>
+
+  <!-- ===== SIGNAL TAB ===== -->
+  <div id="tab-signal" class="tab-content active">
+    <div class="signal-top-row">
+      <div class="active-pill"><div class="active-dot"></div>Active</div>
+      <div class="date-str" id="today-date"></div>
+    </div>
+    <div class="subtab-row">
+      <div class="subtab active">ES Futures</div>
+      <div class="subtab">SPY Options</div>
+    </div>
+
+    <!-- Loading state -->
+    <div id="signal-loading" class="signal-loading">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading today's signal...</div>
+    </div>
+
+    <div id="signal-body" style="display:none">
+      <div class="grid-main">
+        <!-- Left -->
+        <div>
+          <div class="card" style="margin-bottom:12px">
+            <div class="card-label">Signal Direction</div>
+            <div class="direction-box">
+              <div class="dir-icon" id="dir-icon"><i class="ti ti-trending-down" style="color:#A32D2D;font-size:18px"></i></div>
+              <div class="dir-text" id="dir-text">SHORT</div>
+              <div class="dir-sub" id="dir-sub">Sell Signal</div>
+              <div class="dir-instrument">S&P 500 <span>ES · CME</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-label">Risk / Reward</div>
+            <div class="rr-row">
+              <span class="rr-label">Ratio</span>
+              <div class="rr-locked lockable" id="rr-ratio-wrap">
+                <div class="locked-state"><i class="ti ti-lock"></i><span>Members</span></div>
+                <div class="unlocked-state rr-val" id="rr-ratio">—</div>
+              </div>
+            </div>
+            <div class="rr-row">
+              <span class="rr-label tp-color">Target</span>
+              <div class="rr-locked lockable" id="rr-target-wrap">
+                <div class="locked-state"><i class="ti ti-lock"></i><span>Members</span></div>
+                <div class="unlocked-state rr-val tp-color" id="rr-target">—</div>
+              </div>
+            </div>
+            <div class="rr-row">
+              <span class="rr-label sl-color">Risk</span>
+              <div class="rr-locked lockable" id="rr-risk-wrap">
+                <div class="locked-state"><i class="ti ti-lock"></i><span>Members</span></div>
+                <div class="unlocked-state rr-val sl-color" id="rr-risk">—</div>
+              </div>
+            </div>
+            <div class="rr-row"><span class="rr-label">Entry</span><span class="rr-val">Market Open</span></div>
+          </div>
+        </div>
+
+        <!-- Middle -->
+        <div>
+          <div class="card">
+            <div class="entry-card">
+              <div><div class="entry-label">Entry</div><div class="entry-val">NYSE Market Open</div></div>
+              <div class="entry-badge">Market Order</div>
+            </div>
+            <div class="tp-sl-grid">
+              <div class="tp-card">
+                <div class="tp-label">Take Profit <i class="ti ti-lock" style="font-size:11px" id="tp-lock-icon"></i></div>
+                <div class="lockable" id="tp-wrap">
+                  <div class="locked-state">
+                    <div class="locked-pill"><i class="ti ti-lock"></i><span>Members only</span></div>
+                    <div class="locked-blur tp-color">5,612</div>
+                  </div>
+                  <div class="unlocked-state">
+                    <div class="unlocked-price tp-color" id="tp-val">—</div>
+                  </div>
+                </div>
+              </div>
+              <div class="sl-card">
+                <div class="sl-label">Stop Loss <i class="ti ti-lock" style="font-size:11px" id="sl-lock-icon"></i></div>
+                <div class="lockable" id="sl-wrap">
+                  <div class="locked-state">
+                    <div class="locked-pill"><i class="ti ti-lock"></i><span>Members only</span></div>
+                    <div class="locked-blur sl-color">5,578</div>
+                  </div>
+                  <div class="unlocked-state">
+                    <div class="unlocked-price sl-color" id="sl-val">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="conf-header">
+              <span class="conf-title">Confluences</span>
+              <span class="conf-confirmed"><i class="ti ti-circle-check"></i> Confirmed</span>
+            </div>
+            <div class="conf-item lockable" id="conf-1-wrap">
+              <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px" id="conf-1-blur">Resistance level</span></div>
+              <div class="unlocked-state conf-item-text"><i class="ti ti-circle-check" style="color:#0F6E56"></i><span id="conf-1-val">—</span></div>
+              <span class="conf-members" id="conf-1-badge">Members Only</span>
+            </div>
+            <div class="conf-item lockable" id="conf-2-wrap">
+              <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px" id="conf-2-blur">Volume divergence</span></div>
+              <div class="unlocked-state conf-item-text"><i class="ti ti-circle-check" style="color:#0F6E56"></i><span id="conf-2-val">—</span></div>
+              <span class="conf-members" id="conf-2-badge">Members Only</span>
+            </div>
+            <div class="conf-item lockable" id="conf-3-wrap">
+              <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px" id="conf-3-blur">RSI overbought</span></div>
+              <div class="unlocked-state conf-item-text"><i class="ti ti-circle-check" style="color:#0F6E56"></i><span id="conf-3-val">—</span></div>
+              <span class="conf-members" id="conf-3-badge">Members Only</span>
+            </div>
+            <div class="conf-item conf-visible">
+              <div class="conf-item-text">
+                <div class="conf-check"><i class="ti ti-check" style="font-size:11px;color:#0F6E56"></i></div>
+                <span id="conf-public">Overnight Range</span>
+              </div>
+            </div>
+
+            <!-- Admin panel -->
+            <div id="admin-panel" style="display:none;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)">
+              <div class="card-label" style="color:#534AB7">Admin Controls</div>
+              <button class="gen-btn" onclick="adminRegenerateSignal()" id="regen-btn">
+                <i class="ti ti-refresh"></i>
+                <span id="regen-btn-text">Regenerate Signal Now</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right -->
+        <div>
+          <div class="card" style="margin-bottom:12px">
+            <div class="status-header">
+              <span class="card-label" style="margin-bottom:0">Algo Status</span>
+              <span class="live-dot"><div class="dot"></div>Live</span>
+            </div>
+            <div class="activity-bars" id="activity-bars"></div>
+            <div class="status-row"><span class="status-key">Model</span><span class="status-val">BANKROLL v1.0</span></div>
+            <div class="status-row"><span class="status-key">Timeframe</span><span class="status-val">1m / 5m / 15m</span></div>
+            <div class="status-row"><span class="status-key">Bias</span><span class="status-val sl-color" id="bias-txt">Bearish</span></div>
+            <div class="status-row"><span class="status-key">Confidence</span><span class="status-val purple" id="conf-lvl">High</span></div>
+          </div>
+          <div class="card">
+            <div class="cal-header">
+              <span class="cal-title">June 2026</span>
+              <span class="cal-hint">tap day to edit</span>
+            </div>
+            <div class="cal-grid" id="cal-grid"></div>
+            <div class="cal-stats" id="cal-stats"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- No signal yet state -->
+    <div id="signal-empty" style="display:none">
+      <div class="empty-state">
+        <i class="ti ti-clock" style="font-size:32px;color:#534AB7;margin-bottom:12px"></i>
+        <div class="empty-title">Signal Pending</div>
+        <div class="empty-sub">Today's signal generates automatically at 6:00 AM PT. Check back before market open.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PERFORMANCE TAB ===== -->
+  <div id="tab-performance" class="tab-content">
+    <div class="month-filter">
+      <button class="mf-btn active" onclick="setMonthFilter(this)">All Time</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">Jan</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">Feb</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">Mar</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">Apr</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">May</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">Jun</button>
+    </div>
+    <div class="perf-stats-grid">
+      <div class="perf-stat-card"><div class="psc-label">Total Signals</div><div class="psc-val">85</div><div class="psc-sub">62W / 23L</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Win Rate</div><div class="psc-val tp-color">72.9%</div><div class="psc-sub">62 of 85</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Profit Factor</div><div class="psc-val">2.21</div><div class="psc-sub">Gross profit / loss</div></div>
+    </div>
+    <div class="perf-stats-grid" style="margin-top:12px">
+      <div class="perf-stat-card"><div class="psc-label">Net P&L (1 contract)</div><div class="psc-val tp-color">+$15,250</div><div class="psc-sub">+305 pts</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Avg Win (1 contract)</div><div class="locked-bar"><i class="ti ti-lock"></i> Members Only</div><div class="psc-sub">+9 pts</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Avg Loss (1 contract)</div><div class="locked-bar sl-bar"><i class="ti ti-lock"></i> Members Only</div><div class="psc-sub">-11 pts</div></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-label">Trade History</div>
+      <div class="trade-history" id="trade-history"></div>
+    </div>
+  </div>
+
+  <!-- ===== MARKET DATA TAB ===== -->
+  <div id="tab-market" class="tab-content">
+    <div class="card">
+      <div class="market-live-row">
+        <div class="live-yahoo"><div class="dot"></div>Live · Yahoo Finance</div>
+        <span class="market-ticker">ES=F</span>
+      </div>
+      <div class="market-grid-2" style="margin-top:16px">
+        <div class="market-card"><div class="market-card-label">Overnight Range</div><div class="locked-blur" style="font-size:20px;font-weight:500;color:var(--text-primary)">5,529 – 5,587</div><div class="market-members"><i class="ti ti-lock"></i> Members Only</div></div>
+        <div class="market-card green-bg"><div class="market-card-label tp-color">Overnight Trend</div><div class="locked-blur tp-color" style="font-size:20px;font-weight:500">+0.42%</div><div class="market-members tp-color"><i class="ti ti-lock"></i> Members Only</div></div>
+      </div>
+      <div class="market-grid-2" style="margin-top:12px">
+        <div class="market-card"><div class="market-card-label">ES Current</div><div class="locked-blur" style="font-size:20px;font-weight:500;color:var(--text-primary)">5,561.25</div><div class="market-members"><i class="ti ti-lock"></i> Members Only</div></div>
+        <div class="market-card"><div class="market-card-label">Avg Volume</div><div class="locked-blur" style="font-size:20px;font-weight:500;color:var(--text-primary)">284K</div><div class="market-members"><i class="ti ti-lock"></i> Members Only</div></div>
+      </div>
+      <div class="market-card red-bg" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div><div class="market-card-label">Prev Day Last 15-Min Close</div><div class="locked-blur" style="font-size:18px;font-weight:500;color:var(--text-primary)">5,574.50</div><div class="market-members sl-color"><i class="ti ti-lock"></i> Members Only</div></div>
+        <div style="text-align:right"><div class="locked-blur sl-color" style="font-size:22px;font-weight:500">-0.18%</div><div style="font-size:12px;color:var(--text-muted)">vs open</div></div>
+      </div>
+      <div style="margin-top:24px">
+        <div class="card-label">ES Overnight Price (15-min)</div>
+        <div style="position:relative;height:200px"><canvas id="priceChart"></canvas></div>
+        <div class="chart-legend">
+          <span class="legend-item"><span class="leg-dot" style="background:#AFA9EC"></span>OH</span>
+          <span class="legend-item"><span class="leg-dot" style="background:#F09595"></span>OL</span>
+          <span class="legend-item"><span class="leg-dot" style="background:#FAC775"></span>PD Close</span>
+          <span class="legend-item"><span class="leg-dot" style="background:#534AB7"></span>ES Price</span>
+        </div>
+      </div>
+      <div style="margin-top:24px">
+        <div class="card-label">Overnight Volume</div>
+        <div style="position:relative;height:140px"><canvas id="volChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== JOURNAL TAB ===== -->
+  <div id="tab-journal" class="tab-content">
+    <div class="journal-header">
+      <i class="ti ti-book-2" style="color:#534AB7;font-size:18px"></i>
+      <span class="journal-title">Community Trade Journal</span>
+      <span class="journal-readonly">Read Only</span>
+    </div>
+    <div class="journal-grid" id="journal-grid"></div>
+    <div class="journal-cta"><i class="ti ti-lock"></i> Join to add your own trade entries and track your personal performance.</div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
