@@ -352,19 +352,20 @@ function buildNYCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     const el = document.createElement('div');
     el.className = 'cal-day';
-    el.innerHTML = `${d}<div class="day-tooltip">
-      <button class="tt-btn w" onclick="setNYDay(${d},'win');event.stopPropagation()">W</button>
-      <button class="tt-btn l" onclick="setNYDay(${d},'loss');event.stopPropagation()">L</button>
-      <button class="tt-btn" onclick="setNYDay(${d},null);event.stopPropagation()">—</button>
-    </div>`;
-    el.addEventListener('click', function(e) {
-      document.querySelectorAll('.cal-day.open').forEach(x => { if(x !== this) x.classList.remove('open'); });
-      this.classList.toggle('open');
-    });
+    el.textContent = d;
+    const isFuture = d > todayDay && todayDay !== -1;
     if (d === todayDay) el.classList.add('today');
     else if (nyResults[d] === 'win') el.classList.add('win');
     else if (nyResults[d] === 'loss') el.classList.add('loss');
-    else if (d > todayDay && todayDay !== -1) el.classList.add('future');
+    else if (isFuture) el.classList.add('future');
+    if (!isFuture) {
+      el.addEventListener('click', function() {
+        const cur = nyResults[d];
+        if (!cur) setNYDay(d, 'win');
+        else if (cur === 'win') setNYDay(d, 'loss');
+        else setNYDay(d, null);
+      });
+    }
     grid.appendChild(el);
   }
   updateNYStats();
@@ -452,19 +453,20 @@ function buildAsiaCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     const el = document.createElement('div');
     el.className = 'cal-day';
-    el.innerHTML = `${d}<div class="day-tooltip">
-      <button class="tt-btn w" onclick="setAsiaDay(${d},'win');event.stopPropagation()">W</button>
-      <button class="tt-btn l" onclick="setAsiaDay(${d},'loss');event.stopPropagation()">L</button>
-      <button class="tt-btn" onclick="setAsiaDay(${d},null);event.stopPropagation()">—</button>
-    </div>`;
-    el.addEventListener('click', function(e) {
-      document.querySelectorAll('.cal-day.open').forEach(x => { if(x !== this) x.classList.remove('open'); });
-      this.classList.toggle('open');
-    });
+    el.textContent = d;
+    const isFuture = d > todayDay && todayDay !== -1;
     if (d === todayDay) el.classList.add('today');
     else if (asiaResults[d] === 'win') el.classList.add('win');
     else if (asiaResults[d] === 'loss') el.classList.add('loss');
-    else if (d > todayDay && todayDay !== -1) el.classList.add('future');
+    else if (isFuture) el.classList.add('future');
+    if (!isFuture) {
+      el.addEventListener('click', function() {
+        const cur = asiaResults[d];
+        if (!cur) setAsiaDay(d, 'win');
+        else if (cur === 'win') setAsiaDay(d, 'loss');
+        else setAsiaDay(d, null);
+      });
+    }
     grid.appendChild(el);
   }
   updateAsiaStats();
