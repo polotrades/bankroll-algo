@@ -310,20 +310,20 @@ buildActivityBars('asia-activity-bars');
 const NY_KEY = 'bankroll_algo_results_all';
 let nyCalMonth = NOW.getMonth();
 let nyCalYear = NOW.getFullYear();
-let nyResults = getNYResults();
+let nyAllResults = {};
+let nyResults = {};
 
 function getNYResults() {
-  try {
-    const all = JSON.parse(localStorage.getItem(NY_KEY) || '{}');
-    return all[nyCalYear + '_' + nyCalMonth] || {};
-  } catch { return {}; }
+  return nyAllResults[nyCalYear + '_' + nyCalMonth] || {};
 }
 function saveNYResults(r) {
-  try {
-    const all = JSON.parse(localStorage.getItem(NY_KEY) || '{}');
-    all[nyCalYear + '_' + nyCalMonth] = r;
-    localStorage.setItem(NY_KEY, JSON.stringify(all));
-  } catch {}
+  nyAllResults[nyCalYear + '_' + nyCalMonth] = r;
+  try { localStorage.setItem(NY_KEY, JSON.stringify(nyAllResults)); } catch {}
+  fetch('/api/cal-results', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session: 'ny', results: nyAllResults })
+  }).catch(() => {});
 }
 function getNYWins() { return Object.values(nyResults).filter(v => v === 'win').length; }
 function getNYLosses() { return Object.values(nyResults).filter(v => v === 'loss').length; }
@@ -413,20 +413,20 @@ function shiftNYCal(dir) {
 const ASIA_KEY = 'bankroll_algo_asia_results_all';
 let asiaCalMonth = NOW.getMonth();
 let asiaCalYear = NOW.getFullYear();
-let asiaResults = getAsiaResults();
+let asiaAllResults = {};
+let asiaResults = {};
 
 function getAsiaResults() {
-  try {
-    const all = JSON.parse(localStorage.getItem(ASIA_KEY) || '{}');
-    return all[asiaCalYear + '_' + asiaCalMonth] || {};
-  } catch { return {}; }
+  return asiaAllResults[asiaCalYear + '_' + asiaCalMonth] || {};
 }
 function saveAsiaResults(r) {
-  try {
-    const all = JSON.parse(localStorage.getItem(ASIA_KEY) || '{}');
-    all[asiaCalYear + '_' + asiaCalMonth] = r;
-    localStorage.setItem(ASIA_KEY, JSON.stringify(all));
-  } catch {}
+  asiaAllResults[asiaCalYear + '_' + asiaCalMonth] = r;
+  try { localStorage.setItem(ASIA_KEY, JSON.stringify(asiaAllResults)); } catch {}
+  fetch('/api/cal-results', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session: 'asia', results: asiaAllResults })
+  }).catch(() => {});
 }
 function getAsiaWins() { return Object.values(asiaResults).filter(v => v === 'win').length; }
 function getAsiaLosses() { return Object.values(asiaResults).filter(v => v === 'loss').length; }
@@ -510,8 +510,7 @@ function shiftAsiaCal(dir) {
 // ── NY Performance Rendering ───────────────────────────────────────────────
 function renderNYPerformance() {
   // Always use June 2026 live calendar data
-  const savedAll = JSON.parse(localStorage.getItem(NY_KEY) || '{}');
-  const junData = savedAll['2026_5'] || {};
+  const junData = nyAllResults['2026_5'] || {};
   const wins = Object.values(junData).filter(v => v === 'win').length;
   const losses = Object.values(junData).filter(v => v === 'loss').length;
   const total = wins + losses;
@@ -544,8 +543,7 @@ function renderNYPerformance() {
 
 // ── Asia Performance Rendering ─────────────────────────────────────────────
 function renderAsiaPerformance() {
-  const savedAll = JSON.parse(localStorage.getItem(ASIA_KEY) || '{}');
-  const junData = savedAll['2026_5'] || {};
+  const junData = asiaAllResults['2026_5'] || {};
   const wins = Object.values(junData).filter(v => v === 'win').length;
   const losses = Object.values(junData).filter(v => v === 'loss').length;
   const total = wins + losses;
@@ -769,7 +767,36 @@ try {
   document.body.classList.add('unlocked');
 }
 
-try { nyResults = getNYResults(); buildNYCalendar(); } catch(e) {}
-try { asiaResults = getAsiaResults(); buildAsiaCalendar(); } catch(e) {}
+// Load localStorage immediately, then sync from Redis
+try { nyAllResults = JSON.parse(localStorage.getItem(NY_KEY) || '{}'); } catch {}
+try { asiaAllResults = JSON.parse(localStorage.getItem(ASIA_KEY) || '{}'); } catch {}
+nyResults = getNYResults();
+asiaResults = getAsiaResults();
+try { buildNYCalendar(); } catch(e) {}
+try { buildAsiaCalendar(); } catch(e) {}
+
+// Sync from Redis (cloud) — overwrites local if cloud has data
+(async () => {
+  try {
+    const [nyRes, asiaRes] = await Promise.all([
+      fetch('/api/cal-results?session=ny').then(r => r.json()),
+      fetch('/api/cal-results?session=asia').then(r => r.json())
+    ]);
+    if (nyRes.results && Object.keys(nyRes.results).length > 0) {
+      nyAllResults = nyRes.results;
+      try { localStorage.setItem(NY_KEY, JSON.stringify(nyAllResults)); } catch {}
+    }
+    if (asiaRes.results && Object.keys(asiaRes.results).length > 0) {
+      asiaAllResults = asiaRes.results;
+      try { localStorage.setItem(ASIA_KEY, JSON.stringify(asiaAllResults)); } catch {}
+    }
+    nyResults = getNYResults();
+    asiaResults = getAsiaResults();
+    buildNYCalendar();
+    buildAsiaCalendar();
+    renderNYPerformance();
+    renderAsiaPerformance();
+  } catch {}
+})();
 
 loadSignal();
