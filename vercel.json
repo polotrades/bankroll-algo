@@ -1,0 +1,11 @@
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" }
+  ],
+  "crons": [
+    {
+      "path": "/api/generate-signal",
+      "schedule": "0 13 * * 1-5"
+    }
+  ]
+}

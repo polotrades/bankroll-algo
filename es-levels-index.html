@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polo's ES Signals | Long-Range Technical Levels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Preview Banner -->
+<div class="preview-banner">
+  <i class="ti ti-trending-up"></i>
+  ES FUTURES · LONG-RANGE TECHNICAL SIGNALS
+</div>
+
+<!-- Main Container -->
+<div class="container">
+
+  <!-- Header -->
+  <div class="header-bar">
+    <div class="logo-icon"><i class="ti ti-chart-line"></i></div>
+    <div class="header-info">
+      <div class="header-name">ES LEVELS</div>
+      <div class="header-sub">E-mini S&P 500 · Technical Levels</div>
+    </div>
+    <div class="header-perf">
+      <div class="perf-label">June 2026 Performance</div>
+      <div class="perf-badges">
+        <span class="badge-w" id="w-badge">2W</span>
+        <span class="badge-l" id="l-badge">1L</span>
+        <span class="perf-wr-label">Win Rate</span>
+      </div>
+    </div>
+    <div class="header-bar-right">
+      <div class="win-bar-wrap">
+        <div class="win-bar-bg"><div class="win-bar-fill" id="win-bar" style="width:67%"></div></div>
+        <span class="win-pct" id="win-pct-txt">67%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('signal')">Signal</div>
+    <div class="tab" onclick="switchTab('input')">Add Signal</div>
+    <div class="tab" onclick="switchTab('performance')">Performance</div>
+    <div class="tab" onclick="switchTab('levels')">Technical Levels</div>
+  </div>
+
+  <!-- ===== SIGNAL TAB ===== -->
+  <div id="tab-signal" class="tab-content active">
+    <div class="signal-top-row">
+      <div class="active-pill"><div class="active-dot"></div>Active</div>
+      <div class="date-str" id="today-date"></div>
+    </div>
+    <div class="grid-main">
+      <!-- Left -->
+      <div>
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-label">Signal Direction</div>
+          <div class="direction-box">
+            <div class="dir-icon" id="dir-icon"><i class="ti ti-trending-down" style="color:#A32D2D;font-size:18px"></i></div>
+            <div class="dir-text" id="dir-text">SHORT</div>
+            <div class="dir-sub" id="dir-sub">Sell Signal</div>
+            <div class="dir-instrument">ES · CME</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-label">Risk / Reward</div>
+          <div class="rr-row"><span class="rr-label">Ratio</span><span class="rr-val" id="rr-ratio">1.8:1</span></div>
+          <div class="rr-row"><span class="rr-label tp-color">Target</span><span class="rr-val tp-color" id="rr-target">+28 pts</span></div>
+          <div class="rr-row"><span class="rr-label sl-color">Risk</span><span class="rr-val sl-color" id="rr-risk">-16 pts</span></div>
+          <div class="rr-row"><span class="rr-label">Entry</span><span class="rr-val" id="entry-method">Market Open</span></div>
+        </div>
+      </div>
+      <!-- Middle -->
+      <div>
+        <div class="card">
+          <div class="entry-card">
+            <div><div class="entry-label">Entry</div><div class="entry-val">NYSE Market Open (9:30 ET)</div></div>
+            <div class="entry-badge">Market Order</div>
+          </div>
+          <div class="tp-sl-grid">
+            <div class="tp-card">
+              <div class="tp-label">Take Profit</div>
+              <div class="tp-level-val" id="tp-level">5,412</div>
+              <div class="tp-level-type" id="tp-type">Demand Zone</div>
+            </div>
+            <div class="sl-card">
+              <div class="sl-label">Stop Loss</div>
+              <div class="sl-level-val" id="sl-level">5,548</div>
+              <div class="sl-level-type" id="sl-type">Overnight High</div>
+            </div>
+          </div>
+          <div class="conf-header">
+            <span class="conf-title">Confluences</span>
+            <span class="conf-confirmed"><i class="ti ti-circle-check"></i> Active</span>
+          </div>
+          <div class="conf-item conf-visible"><div class="conf-item-text"><div class="conf-check"><i class="ti ti-check" style="font-size:11px;color:#0F6E56"></i></div><span id="conf-1">Prior Day Close Proximity</span></div></div>
+          <div class="conf-item conf-visible"><div class="conf-item-text"><div class="conf-check"><i class="ti ti-check" style="font-size:11px;color:#0F6E56"></i></div><span id="conf-2">VWAP Anchor Test</span></div></div>
+          <div class="conf-item conf-visible"><div class="conf-item-text"><div class="conf-check"><i class="ti ti-check" style="font-size:11px;color:#0F6E56"></i></div><span id="conf-3">Unfilled Gap Level</span></div></div>
+          <button class="gen-btn" id="gen-btn" onclick="generateSignal()">
+            <i class="ti ti-sparkles"></i>
+            <span id="gen-btn-text">Generate AI Signal</span>
+          </button>
+        </div>
+      </div>
+      <!-- Right -->
+      <div>
+        <div class="card" style="margin-bottom:12px">
+          <div class="status-header">
+            <span class="card-label" style="margin-bottom:0">Signal Status</span>
+            <span class="live-dot"><div class="dot"></div>Live</span>
+          </div>
+          <div class="activity-bars" id="activity-bars"></div>
+          <div class="status-row"><span class="status-key">Timeframe</span><span class="status-val">4H / Daily</span></div>
+          <div class="status-row"><span class="status-key">Bias</span><span class="status-val sl-color" id="bias-txt">Bearish</span></div>
+          <div class="status-row"><span class="status-key">Confidence</span><span class="status-val purple" id="conf-lvl">High</span></div>
+          <div class="status-row"><span class="status-key">Next Auto</span><span class="status-val">6:00 AM ET</span></div>
+        </div>
+        <div class="card">
+          <div class="cal-header">
+            <span class="cal-title">June 2026</span>
+            <span class="cal-hint">tap day to edit</span>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+          <div class="cal-stats" id="cal-stats"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ADD SIGNAL TAB ===== -->
+  <div id="tab-input" class="tab-content">
+    <div class="card">
+      <div class="card-label" style="margin-bottom:16px">Manual Signal Entry</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Direction</label>
+          <select id="form-direction" onchange="updateFormPreview()">
+            <option value="">Select direction...</option>
+            <option value="LONG">LONG</option>
+            <option value="SHORT">SHORT</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Entry Price</label>
+          <input type="number" id="form-entry" placeholder="e.g., 5520.50" step="0.25" onchange="updateFormPreview()">
+        </div>
+        <div class="form-group">
+          <label>Take Profit Level</label>
+          <input type="number" id="form-tp" placeholder="e.g., 5548.00" step="0.25" onchange="updateFormPreview()">
+        </div>
+        <div class="form-group">
+          <label>TP Level Type</label>
+          <select id="form-tp-type" onchange="updateFormPreview()">
+            <option value="">Select type...</option>
+            <option value="Demand Zone">Demand Zone</option>
+            <option value="Supply Zone">Supply Zone</option>
+            <option value="Prior Day High">Prior Day High</option>
+            <option value="Prior Day Low">Prior Day Low</option>
+            <option value="Overnight High">Overnight High</option>
+            <option value="Overnight Low">Overnight Low</option>
+            <option value="VWAP Anchor">VWAP Anchor</option>
+            <option value="Unfilled Gap">Unfilled Gap</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Stop Loss Level</label>
+          <input type="number" id="form-sl" placeholder="e.g., 5500.00" step="0.25" onchange="updateFormPreview()">
+        </div>
+        <div class="form-group">
+          <label>SL Level Type</label>
+          <select id="form-sl-type" onchange="updateFormPreview()">
+            <option value="">Select type...</option>
+            <option value="Demand Zone">Demand Zone</option>
+            <option value="Supply Zone">Supply Zone</option>
+            <option value="Prior Day High">Prior Day High</option>
+            <option value="Prior Day Low">Prior Day Low</option>
+            <option value="Overnight High">Overnight High</option>
+            <option value="Overnight Low">Overnight Low</option>
+            <option value="VWAP Anchor">VWAP Anchor</option>
+            <option value="Unfilled Gap">Unfilled Gap</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Confluence 1</label>
+          <input type="text" id="form-conf-1" placeholder="e.g., Prior Day Close" onchange="updateFormPreview()">
+        </div>
+        <div class="form-group">
+          <label>Confluence 2</label>
+          <input type="text" id="form-conf-2" placeholder="e.g., VWAP Test" onchange="updateFormPreview()">
+        </div>
+        <div class="form-group">
+          <label>Confluence 3</label>
+          <input type="text" id="form-conf-3" placeholder="e.g., Gap Level" onchange="updateFormPreview()">
+        </div>
+        <div class="form-group" style="grid-column: 1/-1">
+          <label>Notes</label>
+          <textarea id="form-notes" placeholder="Add any additional notes..." rows="3"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" onclick="submitSignal()">Submit Signal</button>
+        <button class="btn-secondary" onclick="resetForm()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PERFORMANCE TAB ===== -->
+  <div id="tab-performance" class="tab-content">
+    <div class="month-filter">
+      <button class="mf-btn active" onclick="setMonthFilter(this,'all')">All Time</button>
+      <button class="mf-btn" onclick="setMonthFilter(this,'jan')">Jan</button>
+      <button class="mf-btn" onclick="setMonthFilter(this,'feb')">Feb</button>
+      <button class="mf-btn" onclick="setMonthFilter(this,'mar')">Mar</button>
+      <button class="mf-btn" onclick="setMonthFilter(this,'apr')">Apr</button>
+      <button class="mf-btn" onclick="setMonthFilter(this,'may')">May</button>
+      <button class="mf-btn" onclick="setMonthFilter(this,'jun')">Jun</button>
+    </div>
+    <div class="perf-stats-grid">
+      <div class="perf-stat-card">
+        <div class="psc-label">Total Signals</div>
+        <div class="psc-val">28</div>
+        <div class="psc-sub">19W / 9L</div>
+      </div>
+      <div class="perf-stat-card">
+        <div class="psc-label">Win Rate</div>
+        <div class="psc-val tp-color">67.9%</div>
+        <div class="psc-sub">19 of 28</div>
+      </div>
+      <div class="perf-stat-card">
+        <div class="psc-label">Profit Factor</div>
+        <div class="psc-val">2.14</div>
+        <div class="psc-sub">Long-range targets</div>
+      </div>
+    </div>
+    <div class="perf-stats-grid" style="margin-top:12px">
+      <div class="perf-stat-card">
+        <div class="psc-label">Avg Win (1 contract)</div>
+        <div class="psc-val tp-color">+32 pts</div>
+        <div class="psc-sub">Target achieved</div>
+      </div>
+      <div class="perf-stat-card">
+        <div class="psc-label">Avg Loss (1 contract)</div>
+        <div class="psc-val sl-color">-18 pts</div>
+        <div class="psc-sub">Risk management</div>
+      </div>
+      <div class="perf-stat-card">
+        <div class="psc-label">Expectancy</div>
+        <div class="psc-val purple">+17.1 pts</div>
+        <div class="psc-sub">Per signal</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-label">Trade History</div>
+      <div class="trade-history" id="trade-history"></div>
+    </div>
+  </div>
+
+  <!-- ===== TECHNICAL LEVELS TAB ===== -->
+  <div id="tab-levels" class="tab-content">
+    <div class="card">
+      <div class="card-label">Current ES Technical Levels</div>
+      <div class="levels-grid">
+        <div class="level-card">
+          <div class="level-type">Demand Zone</div>
+          <div class="level-price">5,480 - 5,495</div>
+          <div class="level-desc">Strong support from recent bounces</div>
+        </div>
+        <div class="level-card">
+          <div class="level-type">Supply Zone</div>
+          <div class="level-price">5,620 - 5,640</div>
+          <div class="level-desc">Resistance near recent highs</div>
+        </div>
+        <div class="level-card">
+          <div class="level-type">Prior Day High</div>
+          <div class="level-price">5,587.50</div>
+          <div class="level-desc">Yesterday's intraday high</div>
+        </div>
+        <div class="level-card">
+          <div class="level-type">Prior Day Low</div>
+          <div class="level-price">5,461.25</div>
+          <div class="level-desc">Yesterday's intraday low</div>
+        </div>
+        <div class="level-card">
+          <div class="level-type">Prior Day Close</div>
+          <div class="level-price">5,574.50</div>
+          <div class="level-desc">Overnight opening reference</div>
+        </div>
+        <div class="level-card">
+          <div class="level-type">Overnight High</div>
+          <div class="level-price">5,598.00</div>
+          <div class="level-desc">ES high during 18:00-09:30</div>
+        </div>
+        <div class="level-card">
+          <div class="level-type">Overnight Low</div>
+          <div class="level-price">5,529.75</div>
+          <div class="level-desc">ES low during 18:00-09:30</div>
+        </div>
+        <div class="level-card">
+          <div class="level-type">VWAP Anchor (4H)</div>
+          <div class="level-price">5,542.30</div>
+          <div class="level-desc">Volume-weighted avg price</div>
+        </div>
+        <div class="level-card">
+          <div class="level-type">Unfilled Gap</div>
+          <div class="level-price">5,505 - 5,515</div>
+          <div class="level-desc">From June 2 session</div>
+        </div>
+      </div>
+      <div style="margin-top:24px">
+        <div class="card-label">ES Overnight Price (Last 12h)</div>
+        <div style="position:relative;height:200px"><canvas id="levelChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script src="app.js"></script>
+</body>
+</html>
