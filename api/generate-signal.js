@@ -3,7 +3,6 @@
 // Also callable manually via POST /api/generate-signal?admin_key=YOUR_ADMIN_KEY
 
 export default async function handler(req, res) {
-  // Allow cron (GET) or manual admin trigger (POST with key)
   if (req.method === 'POST') {
     const { admin_key } = req.body || {};
     if (admin_key !== process.env.ADMIN_PASSWORD) {
@@ -17,7 +16,6 @@ export default async function handler(req, res) {
   });
 
   try {
-    // 1. Call Claude API to generate the signal
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -26,7 +24,7 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         messages: [{
           role: 'user',
@@ -55,24 +53,24 @@ Format exactly:
     });
 
     const claudeData = await claudeRes.json();
+    if (!claudeData.content) throw new Error('Anthropic API error: ' + JSON.stringify(claudeData));
+
     const raw = claudeData.content.map(c => c.text || '').join('');
     const signal = JSON.parse(raw.replace(/```json|```/g, '').trim());
 
-    // Add metadata
     signal.generated_at = new Date().toISOString();
     signal.date = today;
 
-    // 2. Save signal to Upstash Redis
-    const upstashRes = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/set/current_signal`, {
+    const upstashRes = await fetch(process.env.UPSTASH_REDIS_REST_URL, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ value: JSON.stringify(signal) })
+      body: JSON.stringify(['SET', 'current_signal', JSON.stringify(signal)])
     });
-
-    if (!upstashRes.ok) throw new Error('Failed to save to Upstash');
+    const upstashData = await upstashRes.json();
+    if (upstashData.error) throw new Error('Upstash error: ' + upstashData.error);
 
     return res.status(200).json({ success: true, signal });
 
