@@ -211,6 +211,13 @@ function populateSignal(signal) {
   set('conf-3-val', signal.confluence_3);
   set('conf-public', signal.confluence_public);
 
+  // Generated time
+  if (signal.generated_at) {
+    const t = new Date(signal.generated_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles', timeZoneName: 'short' });
+    const el = document.getElementById('ny-gen-time');
+    if (el) el.textContent = 'Generated at ' + t;
+  }
+
   // Options panel
   populateOptions(signal);
 }

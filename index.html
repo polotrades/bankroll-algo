@@ -86,7 +86,10 @@
   <div class="tab-content active body-pad" id="ny-tab-signal">
     <div class="signal-top-row">
       <div class="active-pill"><div class="active-dot"></div>Active</div>
-      <div class="date-txt" id="today-date"></div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="date-txt" id="ny-gen-time"></div>
+        <div class="date-txt" id="today-date"></div>
+      </div>
     </div>
     <div class="subtab-row">
       <div class="subtab active" onclick="switchSubtab('futures')">ES Futures</div>
