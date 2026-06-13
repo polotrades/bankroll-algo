@@ -3,6 +3,6 @@
   "rewrites": [{ "source": "/api/(.*)", "destination": "/api/$1" }],
   "crons": [
     { "path": "/api/generate-signal",      "schedule": "0 13 * * 1-5" },
-    { "path": "/api/generate-asia-signal", "schedule": "30 23 * * 0-4" }
+    { "path": "/api/generate-asia-signal", "schedule": "0 23 * * 0-4" }
   ]
 }
