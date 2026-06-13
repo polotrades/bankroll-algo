@@ -1,5 +1,4 @@
-// api/get-signal.js
-// Frontend calls this to load today's signal
+// api/get-asia-signal.js — BANKROLL ALGO
 
 export default async function handler(req, res) {
   try {
@@ -9,18 +8,17 @@ export default async function handler(req, res) {
         Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(['GET', 'current_signal'])
+      body: JSON.stringify(['GET', 'ba_asia_signal'])
     });
 
-    const data = await upstashRes.json();
+    const upstashData = await upstashRes.json();
+    if (upstashData.error) throw new Error('Upstash error: ' + upstashData.error);
 
-    if (!data.result) {
-      return res.status(200).json({ signal: null });
-    }
+    const raw = upstashData.result;
+    if (!raw) return res.status(200).json({ signal: null });
 
-    const signal = JSON.parse(data.result);
+    const signal = JSON.parse(raw);
     return res.status(200).json({ signal });
-
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
