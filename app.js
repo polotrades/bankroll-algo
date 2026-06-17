@@ -208,6 +208,25 @@ function populateSignal(signal) {
 
   // Market context panel
   renderMarketContext(signal);
+  renderSpyOptions(signal);
+}
+
+// ── Subtab switching ──────────────────────────────────────────────────────
+let currentSubtab = 'es';
+function switchSubtab(name) {
+  currentSubtab = name;
+  document.querySelectorAll('.subtab').forEach((t, i) => {
+    t.classList.toggle('active', ['es','spy'][i] === name);
+  });
+  const signalBody = document.getElementById('signal-body');
+  const spyPanel   = document.getElementById('spy-panel');
+  if (name === 'spy') {
+    if (signalBody) signalBody.style.display = 'none';
+    if (spyPanel)   spyPanel.style.display   = 'block';
+  } else {
+    if (signalBody) signalBody.style.display = 'block';
+    if (spyPanel)   spyPanel.style.display   = 'none';
+  }
 }
 
 // ── Market context panel ──────────────────────────────────────────────────
@@ -325,6 +344,40 @@ function renderMarketContext(signal) {
     badge.style.display = 'none';
     biasRow.style.display = 'none';
   }
+}
+
+// ── SPY Options panel ─────────────────────────────────────────────────────
+function renderSpyOptions(signal) {
+  const el = document.getElementById('spy-options-body');
+  if (!el) return;
+  const ctx = signal.market_context;
+  if (!ctx || (!ctx.call_wall && !ctx.put_wall)) {
+    el.innerHTML = `<div style="text-align:center;padding:32px 0;color:var(--text-muted);font-size:13px">
+      <i class="ti ti-refresh" style="font-size:24px;display:block;margin-bottom:8px"></i>
+      Regenerate signal to load live options data</div>`;
+    return;
+  }
+  const row = (label, val, sub, color) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">
+      <div>
+        <div style="font-size:13px;color:var(--text-muted)">${label}</div>
+        ${sub ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${sub}</div>` : ''}
+      </div>
+      <div style="font-size:16px;font-weight:600;${color?'color:'+color:''}">${val}</div>
+    </div>`;
+
+  const c = ctx;
+  let html = '';
+  if (c.call_wall?.spy) html += row('Call Wall (Resistance)', `SPY ${c.call_wall.spy}`, `ES ~${c.call_wall.es} · OI ${c.call_wall.oi}`, 'var(--green)');
+  if (c.put_wall?.spy)  html += row('Put Wall (Support)',     `SPY ${c.put_wall.spy}`,  `ES ~${c.put_wall.es} · OI ${c.put_wall.oi}`,  'var(--red)');
+  if (c.max_pain?.spy)  html += row('Max Pain',               `SPY ${c.max_pain.spy}`,  `ES ~${c.max_pain.es} · price magnet`, 'var(--gold)');
+  if (c.pc_ratio?.value) {
+    const pc = parseFloat(c.pc_ratio.value);
+    const col = pc > 1.2 ? 'var(--red)' : pc < 0.8 ? 'var(--green)' : 'var(--text-primary)';
+    html += row('Put/Call Ratio', c.pc_ratio.value, c.pc_ratio.tag, col);
+  }
+  if (c.options_expiry) html += `<div style="font-size:11px;color:var(--text-muted);margin-top:8px">Expiry: ${c.options_expiry}</div>`;
+  el.innerHTML = html || `<div style="color:var(--text-muted);font-size:13px;padding:16px 0">No options data available</div>`;
 }
 
 // ── Admin: regenerate signal manually ────────────────────────────────────

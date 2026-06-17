@@ -96,8 +96,21 @@
     </div>
 
     <div class="subtab-row">
-      <div class="subtab active">ES Futures</div>
-      <div class="subtab">SPY Options</div>
+      <div class="subtab active" onclick="switchSubtab('es')">ES Futures</div>
+      <div class="subtab" onclick="switchSubtab('spy')">SPY Options</div>
+    </div>
+
+    <!-- SPY Options panel -->
+    <div id="spy-panel" style="display:none">
+      <div class="card">
+        <div class="card-label">SPY Options Levels</div>
+        <div id="spy-options-body">
+          <div style="text-align:center;padding:32px 0;color:var(--text-muted);font-size:13px">
+            <i class="ti ti-refresh" style="font-size:24px;display:block;margin-bottom:8px"></i>
+            Regenerate signal to load live options data
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Loading state -->
