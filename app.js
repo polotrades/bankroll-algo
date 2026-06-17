@@ -378,15 +378,52 @@ function getLosses() { return Object.values(results).filter(v => v === 'loss').l
 function updateStats() {
   const w = getWins(), l = getLosses(), total = w + l;
   const pct = total > 0 ? Math.round(w / total * 100) : 0;
+
+  // Header bar
   document.getElementById('w-badge').textContent = w + 'W';
   document.getElementById('l-badge').textContent = l + 'L';
   document.getElementById('win-pct-txt').textContent = pct + '%';
   document.getElementById('win-bar').style.width = pct + '%';
+
+  // Calendar mini stats
   const stats = document.getElementById('cal-stats');
   stats.innerHTML = `
-    <span class="cal-stat" style="background:#E1F5EE;color:#0F6E56">${w}W</span>
-    <span class="cal-stat" style="background:#FCEBEB;color:#A32D2D">${l}L</span>
-    <span class="cal-stat" style="background:#EEEDFE;color:#534AB7">${pct}% WR</span>`;
+    <span class="cal-stat" style="background:var(--green-light);color:var(--green)">${w}W</span>
+    <span class="cal-stat" style="background:var(--red-light);color:var(--red)">${l}L</span>
+    <span class="cal-stat" style="background:var(--gold-light);color:var(--gold)">${pct}% WR</span>`;
+
+  // Performance tab stats
+  const netDollars = w * 450 - l * 550;
+  const netPts     = w * 9  - l * 11;
+  const pf         = l > 0 ? ((w * 450) / (l * 550)).toFixed(2) : w > 0 ? '∞' : '—';
+
+  const el = (id) => document.getElementById(id);
+  if (el('perf-total')) {
+    el('perf-total').textContent = total;
+    el('perf-wl').textContent    = `${w}W / ${l}L`;
+    el('perf-wr').textContent    = pct + '%';
+    el('perf-wr-sub').textContent = `${w} of ${total}`;
+    el('perf-pf').textContent    = pf;
+    el('perf-pnl').textContent   = (netDollars >= 0 ? '+' : '') + '$' + Math.abs(netDollars).toLocaleString();
+    el('perf-pnl').style.color   = netDollars >= 0 ? 'var(--green)' : 'var(--red)';
+    el('perf-pts').textContent   = (netPts >= 0 ? '+' : '') + netPts + ' pts';
+  }
+
+  // Trade history dots — rebuild from actual calendar results in day order
+  const th = document.getElementById('trade-history');
+  if (th) {
+    th.innerHTML = '';
+    const days = Object.keys(results).map(Number).sort((a,b) => a - b);
+    days.forEach(d => {
+      const r = results[d];
+      if (r === 'win' || r === 'loss') {
+        const dot = document.createElement('div');
+        dot.className = 'th-dot ' + (r === 'win' ? 'w' : 'l');
+        dot.textContent = r === 'win' ? 'W' : 'L';
+        th.appendChild(dot);
+      }
+    });
+  }
 }
 
 function buildCalendar() {
