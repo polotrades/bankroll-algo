@@ -148,112 +148,74 @@ export default async function handler(req, res) {
       }
     } catch (e) { /* continue without options data */ }
 
-    // ── Economic Calendar with actual vs forecast surprise analysis ────────
+    // ── Economic Calendar (free, no API key) ─────────────────────────────
     try {
-      const calRes = await fetch(
-        'https://www.jblanked.com/news/api/forex-factory/calendar/today/?currency=USD',
-        {
-          headers: {
-            'Authorization': `Api-Key ${process.env.JBLANKED_API_KEY}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const calRes = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+      });
       if (calRes.ok) {
         const events = await calRes.json();
-        const relevant = Array.isArray(events)
-          ? events.filter(e => e.Impact === 'High' || e.Impact === 'Medium')
-          : [];
 
-        const getEventTimePT = (ev) => {
-          try {
-            const raw = ev.Date.replace('.', '-').replace('.', '-');
-            return new Date(raw.replace(' ', 'T') + 'Z');
-          } catch (_) { return null; }
-        };
+        // Filter: USD only, High/Medium, today's date in ET
+        const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+        const marketOpenET = new Date();
+        marketOpenET.setHours(9, 30, 0, 0); // 9:30 AM ET = market open
 
-        const marketOpenPT = new Date();
-        marketOpenPT.setHours(6, 30, 0, 0);
-
-        const analyzeSurprise = (ev) => {
-          const actual   = parseFloat(ev.Actual);
-          const forecast = parseFloat(ev.Forecast);
-          if (isNaN(actual) || isNaN(forecast)) return null;
-          const diff = actual - forecast;
-          if (Math.abs(diff) < 0.001) return { type: 'inline', label: 'Inline with forecast — neutral', bias: 'neutral' };
-          const name = ev.Name.toLowerCase();
-          const isInflation = name.includes('cpi') || name.includes('pce') || name.includes('inflation') || name.includes('price') || name.includes('import price');
-          if (diff > 0) {
-            if (isInflation) return { type: 'inflation_beat', label: `Beat by +${diff.toFixed(2)} — inflationary surprise, bullish short-term`, bias: 'bullish' };
-            return { type: 'beat', label: `Beat by +${diff.toFixed(2)} — bullish surprise`, bias: 'bullish' };
-          } else {
-            if (isInflation) return { type: 'inflation_miss', label: `Missed by ${diff.toFixed(2)} — cooling inflation, dovish/bullish`, bias: 'bullish' };
-            return { type: 'miss', label: `Missed by ${diff.toFixed(2)} — bearish surprise`, bias: 'bearish' };
-          }
-        };
+        const relevant = Array.isArray(events) ? events.filter(e => {
+          if (e.country !== 'USD') return false;
+          if (e.impact !== 'High' && e.impact !== 'Medium') return false;
+          const evDateET = new Date(e.date).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+          return evDateET === todayET;
+        }) : [];
 
         if (relevant.length > 0) {
           newsLines.push('');
-          newsLines.push('USD ECONOMIC EVENTS TODAY (with surprise analysis):');
+          newsLines.push('USD ECONOMIC EVENTS TODAY:');
 
-          let bullish = 0, bearish = 0, hasBigSurprise = false, hasBeforeOpen = false;
+          let bullish = 0, bearish = 0;
 
           for (const ev of relevant) {
-            const evTime  = getEventTimePT(ev);
-            const timeStr = evTime
-              ? evTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' }) + ' PT'
-              : ev.Date;
-            const isBeforeOpen = evTime && evTime < marketOpenPT;
-            if (isBeforeOpen) hasBeforeOpen = true;
+            const evDate = new Date(ev.date);
+            const timeStr = evDate.toLocaleTimeString('en-US', {
+              hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short'
+            });
+            const isBeforeOpen = evDate < marketOpenET;
 
-            const flag     = ev.Impact === 'High' ? '🔴 HIGH' : '🟡 MED';
-            const surprise = analyzeSurprise(ev);
-
-            // Structured event for frontend
-            const ctxEvent = {
-              name:     ev.Name,
-              time:     timeStr,
-              impact:   ev.Impact,
-              actual:   ev.Actual != null ? String(ev.Actual)   : null,
-              forecast: ev.Forecast != null ? String(ev.Forecast) : null,
-              surprise: surprise ? surprise.label : null,
-              bias:     surprise ? surprise.bias  : 'neutral',
-              before_open: isBeforeOpen
-            };
-            ctx.news_events.push(ctxEvent);
-
-            let line = `  ${flag}  ${timeStr}  — ${ev.Name}`;
-            if (ev.Actual != null)   line += `  (Actual: ${ev.Actual}`;
-            if (ev.Forecast != null) line += `, Forecast: ${ev.Forecast})`;
-            if (surprise && surprise.type !== 'inline') {
-              line += `\n      → ${surprise.label}`;
-              if (isBeforeOpen) {
-                hasBigSurprise = true;
-                if (surprise.bias === 'bullish') bullish++;
-                else if (surprise.bias === 'bearish') bearish++;
-              }
+            // Direction from forecast vs previous
+            const fcst = parseFloat(ev.forecast);
+            const prev = parseFloat(ev.previous);
+            let bias = 'neutral', surpriseLabel = null;
+            if (!isNaN(fcst) && !isNaN(prev) && fcst !== prev) {
+              const name = ev.title.toLowerCase();
+              const negative = name.includes('unemployment') || name.includes('claims') || name.includes('deficit');
+              const higher = fcst > prev;
+              bias = (higher !== negative) ? 'bullish' : 'bearish';
+              surpriseLabel = `Forecast ${ev.forecast} vs Prior ${ev.previous} — ${bias}`;
+              if (isBeforeOpen) { if (bias === 'bullish') bullish++; else bearish++; }
             }
-            newsLines.push(line);
+
+            ctx.news_events.push({
+              name: ev.title, time: timeStr, impact: ev.impact,
+              forecast: ev.forecast || null, actual: null,
+              surprise: surpriseLabel, bias, before_open: isBeforeOpen
+            });
+
+            newsLines.push(`  [${ev.impact.toUpperCase()}] ${timeStr} — ${ev.title}${ev.forecast ? ` (F: ${ev.forecast}, P: ${ev.previous})` : ''}`);
           }
 
           newsLines.push('');
-          if (hasBigSurprise) {
-            if (bullish > bearish) {
-              ctx.news_bias = 'bullish';
-              newsLines.push(`⚠️  NET NEWS BIAS: BULLISH (${bullish} beat(s) before open) — if signal is SHORT, lower confidence to Low or flip to LONG.`);
-            } else if (bearish > bullish) {
-              ctx.news_bias = 'bearish';
-              newsLines.push(`⚠️  NET NEWS BIAS: BEARISH (${bearish} miss(es) before open) — if signal is LONG, lower confidence to Low or flip to SHORT.`);
-            } else {
-              ctx.news_bias = 'mixed';
-              newsLines.push(`⚠️  MIXED NEWS BEFORE OPEN — use Low confidence.`);
-            }
-          } else if (hasBeforeOpen) {
-            ctx.news_bias = 'none';
-            newsLines.push(`ℹ️  News before open but all inline — neutral, technicals drive direction.`);
+          if (bullish > bearish) {
+            ctx.news_bias = 'bullish';
+            newsLines.push(`⚠️  NET NEWS BIAS: BULLISH — if signal is SHORT, consider lowering confidence.`);
+          } else if (bearish > bullish) {
+            ctx.news_bias = 'bearish';
+            newsLines.push(`⚠️  NET NEWS BIAS: BEARISH — if signal is LONG, consider lowering confidence.`);
+          } else if (bullish === bearish && bullish > 0) {
+            ctx.news_bias = 'mixed';
+            newsLines.push(`⚠️  MIXED NEWS — use lower confidence today.`);
           } else {
             ctx.news_bias = 'none';
-            newsLines.push(`✅  No major USD surprises before open — clean day, full confidence allowed.`);
+            newsLines.push(`✅  Events scheduled but no directional lean — technicals drive direction.`);
           }
         } else {
           ctx.news_bias = 'none';
