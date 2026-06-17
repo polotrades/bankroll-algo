@@ -397,18 +397,14 @@ function buildCalendar() {
     const el = document.createElement('div');
     el.className = 'cal-day-label'; el.textContent = d; grid.appendChild(el);
   });
-  // June 2026 starts Monday = DOW 1
   for (let i = 0; i < 1; i++) {
     const el = document.createElement('div'); el.className = 'cal-day empty'; el.textContent = '·'; grid.appendChild(el);
   }
   for (let d = 1; d <= 30; d++) {
     const el = document.createElement('div');
     el.className = 'cal-day';
-    el.innerHTML = `${d}<div class="day-tooltip">
-      <button class="tt-btn w" onclick="setDay(${d},'win');event.stopPropagation()">W</button>
-      <button class="tt-btn l" onclick="setDay(${d},'loss');event.stopPropagation()">L</button>
-      <button class="tt-btn" onclick="setDay(${d},null);event.stopPropagation()">—</button>
-    </div>`;
+    el.textContent = d;
+    el.onclick = () => cycleDay(d);
     if (d === TODAY_DAY) el.classList.add('today');
     else if (results[d] === 'win') el.classList.add('win');
     else if (results[d] === 'loss') el.classList.add('loss');
@@ -417,9 +413,11 @@ function buildCalendar() {
   }
 }
 
-function setDay(d, val) {
-  if (val === null) delete results[d];
-  else results[d] = val;
+function cycleDay(d) {
+  const cur = results[d];
+  if (!cur) results[d] = 'win';
+  else if (cur === 'win') results[d] = 'loss';
+  else delete results[d];
   saveResults(results);
   buildCalendar();
   updateStats();

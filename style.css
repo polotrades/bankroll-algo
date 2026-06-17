@@ -1,25 +1,29 @@
 :root {
-  --bg: #090910;
-  --surface: #0F0F18;
-  --surface-2: #161622;
-  --border: rgba(255,255,255,0.06);
-  --border-med: rgba(255,255,255,0.11);
-  --text-primary: #E2E2EC;
-  --text-muted: #52526A;
-  --text-sub: #8080A0;
-  --purple: #6B5FD0;
-  --purple-light: rgba(107,95,208,0.14);
-  --purple-mid: rgba(107,95,208,0.28);
-  --green: #1DB880;
-  --green-light: rgba(29,184,128,0.11);
-  --green-mid: rgba(29,184,128,0.25);
-  --red: #D94F4F;
-  --red-light: rgba(217,79,79,0.11);
-  --red-mid: rgba(217,79,79,0.25);
-  --gold: #B8922A;
+  --bg: #07070C;
+  --surface: #0C0C14;
+  --surface-2: #11111C;
+  --border: rgba(255,255,255,0.055);
+  --border-med: rgba(255,255,255,0.1);
+  --text-primary: #DDDDE8;
+  --text-muted: #48485E;
+  --text-sub: #7878A0;
+  --purple: #6457C8;
+  --purple-light: rgba(100,87,200,0.13);
+  --purple-mid: rgba(100,87,200,0.25);
+  --green: #18A870;
+  --green-light: rgba(24,168,112,0.1);
+  --green-mid: rgba(24,168,112,0.22);
+  --red: #CC4444;
+  --red-light: rgba(204,68,68,0.1);
+  --red-mid: rgba(204,68,68,0.22);
+  --gold: #C9A552;
   --radius: 12px;
   --radius-sm: 8px;
 }
+
+/* remove blur on market data tab */
+#tab-market .locked-blur { filter: none !important; }
+#tab-market .market-members { display: none !important; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
