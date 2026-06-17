@@ -36,10 +36,9 @@ export default async function handler(req, res) {
     };
 
     // ── 1. Fetch ES price + VIX + SPY options in parallel ─────────────────
-    const [esRes, vixRes, spyOptRes] = await Promise.allSettled([
+    const [esRes, vixRes] = await Promise.allSettled([
       fetch('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }),
-      fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS }),
-      fetch('https://query2.finance.yahoo.com/v7/finance/options/SPY', { headers: YF_HEADERS })
+      fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
     ]);
 
     // ── ES price + VIX ────────────────────────────────────────────────────
@@ -83,7 +82,8 @@ export default async function handler(req, res) {
       }
 
       // VIX
-      const vixData  = await vixRes.value.json();
+      const vixData  = vixRes.status === 'fulfilled' ? await vixRes.value.json() : null;
+      if (!vixData) throw new Error('VIX fetch failed');
       const vixClose = vixData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
       const lastVix  = vixClose.filter(v => v != null).pop();
       if (lastVix) {
@@ -96,59 +96,49 @@ export default async function handler(req, res) {
       }
     } catch (e) { /* continue without market data */ }
 
-    // ── SPY Options: call wall, put wall, P/C ratio, max pain ────────────
+    // ── SPY Options via CBOE free API ────────────────────────────────────
     try {
-      const spyOpt = await spyOptRes.value.json();
-      const chain  = spyOpt?.optionChain?.result?.[0];
-      const spot   = chain?.quote?.regularMarketPrice || 0;
-      const calls  = chain?.options?.[0]?.calls || [];
-      const puts   = chain?.options?.[0]?.puts  || [];
-      const expiry = chain?.options?.[0]?.expirationDate
-        ? new Date(chain.options[0].expirationDate * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        : 'nearest';
+      const cboeRes = await fetch('https://cdn.cboe.com/api/global/delayed_quotes/options/_SPY.json', {
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+      });
+      if (cboeRes.ok) {
+        const cboeData = await cboeRes.json();
+        const spot = cboeData?.data?.current_price || 0;
+        const options = cboeData?.data?.options || [];
 
-      if (calls.length && puts.length && spot > 0) {
-        const lo = spot * 0.94, hi = spot * 1.06;
-        const filtCalls = calls.filter(c => c.strike >= lo && c.strike <= hi);
-        const filtPuts  = puts.filter(p  => p.strike >= lo && p.strike <= hi);
+        if (options.length && spot > 0) {
+          const lo = spot * 0.95, hi = spot * 1.05;
+          const calls = options.filter(o => o.option?.charAt(15) === 'C' && parseFloat(o.strike_price) >= lo && parseFloat(o.strike_price) <= hi);
+          const puts  = options.filter(o => o.option?.charAt(15) === 'P' && parseFloat(o.strike_price) >= lo && parseFloat(o.strike_price) <= hi);
 
-        const callWall = filtCalls.reduce((a, b) => (b.openInterest || 0) > (a.openInterest || 0) ? b : a, filtCalls[0]);
-        const putWall  = filtPuts.reduce((a, b)  => (b.openInterest || 0) > (a.openInterest || 0) ? b : a, filtPuts[0]);
+          const byOI = (arr) => arr.reduce((a, b) => (b.volume || 0) > (a.volume || 0) ? b : a, arr[0]);
+          const callWall = calls.length ? byOI(calls) : null;
+          const putWall  = puts.length  ? byOI(puts)  : null;
 
-        const totalCallOI = filtCalls.reduce((s, c) => s + (c.openInterest || 0), 0);
-        const totalPutOI  = filtPuts.reduce((s, p)  => s + (p.openInterest || 0), 0);
-        const pcRatio     = totalCallOI > 0 ? (totalPutOI / totalCallOI).toFixed(2) : null;
-        const pcTag       = pcRatio
-          ? (parseFloat(pcRatio) > 1.2 ? 'bearish lean' : parseFloat(pcRatio) < 0.8 ? 'bullish lean' : 'neutral')
-          : '';
+          const totalCallOI = calls.reduce((s, o) => s + (o.volume || 0), 0);
+          const totalPutOI  = puts.reduce((s, o)  => s + (o.volume || 0), 0);
+          const pcRatio = totalCallOI > 0 ? (totalPutOI / totalCallOI).toFixed(2) : null;
+          const pcTag   = pcRatio ? (parseFloat(pcRatio) > 1.2 ? 'bearish lean' : parseFloat(pcRatio) < 0.8 ? 'bullish lean' : 'neutral') : '';
 
-        const allStrikes = [...new Set([...filtCalls, ...filtPuts].map(o => o.strike))].sort((a,b) => a-b);
-        let maxPainStrike = null, maxPainLoss = -Infinity;
-        for (const s of allStrikes) {
-          const callLoss = filtCalls.reduce((sum, c) => sum + Math.max(0, s - c.strike) * (c.openInterest || 0) * 100, 0);
-          const putLoss  = filtPuts.reduce((sum, p)  => sum + Math.max(0, p.strike - s) * (p.openInterest || 0) * 100, 0);
-          const total = callLoss + putLoss;
-          if (total > maxPainLoss) { maxPainLoss = total; maxPainStrike = s; }
+          const spyToES = (p) => p ? (parseFloat(p) * 10).toFixed(0) : 'N/A';
+          const cStrike = callWall?.strike_price;
+          const pStrike = putWall?.strike_price;
+
+          ctx.call_wall = cStrike ? { spy: parseFloat(cStrike).toFixed(0), es: spyToES(cStrike), oi: (callWall.volume||0).toLocaleString() } : null;
+          ctx.put_wall  = pStrike ? { spy: parseFloat(pStrike).toFixed(0), es: spyToES(pStrike), oi: (putWall.volume||0).toLocaleString() }  : null;
+          ctx.pc_ratio  = pcRatio ? { value: pcRatio, tag: pcTag } : null;
+
+          if (ctx.call_wall || ctx.put_wall) {
+            optionsLines = [
+              ``,
+              `SPY OPTIONS LEVELS (CBOE delayed):`,
+              ctx.call_wall ? `Call Wall:      SPY ${ctx.call_wall.spy} → ES ~${ctx.call_wall.es} (resistance)` : '',
+              ctx.put_wall  ? `Put Wall:       SPY ${ctx.put_wall.spy}  → ES ~${ctx.put_wall.es} (support)`     : '',
+              pcRatio       ? `Put/Call Ratio: ${pcRatio} (${pcTag})` : '',
+              `Use walls as TP/SL reference zones.`,
+            ].filter(Boolean);
+          }
         }
-
-        const spyToES = (p) => p ? (p * 10).toFixed(0) : 'N/A';
-
-        ctx.call_wall = { spy: callWall?.strike?.toFixed(0), es: spyToES(callWall?.strike), oi: (callWall?.openInterest||0).toLocaleString() };
-        ctx.put_wall  = { spy: putWall?.strike?.toFixed(0),  es: spyToES(putWall?.strike),  oi: (putWall?.openInterest||0).toLocaleString() };
-        ctx.max_pain  = { spy: maxPainStrike?.toFixed(0), es: spyToES(maxPainStrike) };
-        ctx.pc_ratio  = { value: pcRatio, tag: pcTag };
-        ctx.options_expiry = expiry;
-
-        optionsLines = [
-          ``,
-          `SPY OPTIONS LEVELS (${expiry} expiry — proxy for ES):`,
-          `Call Wall:          SPY ${callWall?.strike?.toFixed(0)} → ES ~${spyToES(callWall?.strike)} (resistance)`,
-          `Put Wall:           SPY ${putWall?.strike?.toFixed(0)}  → ES ~${spyToES(putWall?.strike)} (support)`,
-          `Max Pain:           SPY ${maxPainStrike?.toFixed(0)} → ES ~${spyToES(maxPainStrike)} (price magnet into close)`,
-          `Put/Call Ratio:     ${pcRatio} (${pcTag})`,
-          ``,
-          `Use call/put walls as TP and SL reference zones. Price tends to gravitate toward max pain.`,
-        ];
       }
     } catch (e) { /* continue without options data */ }
 
