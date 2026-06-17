@@ -162,6 +162,126 @@ function populateSignal(signal) {
     });
     document.getElementById('signal-time').textContent = `Generated at ${t}`;
   }
+
+  // Market context panel
+  renderMarketContext(signal);
+}
+
+// ── Market context panel ──────────────────────────────────────────────────
+function toggleMktCtx() {
+  const body = document.getElementById('mkt-ctx-body');
+  const chev = document.getElementById('mkt-ctx-chev');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  chev.style.transform = isOpen ? '' : 'rotate(180deg)';
+  chev.style.transition = 'transform 0.2s';
+}
+
+function renderMarketContext(signal) {
+  const ctx = signal.market_context;
+  if (!ctx) return;
+
+  document.getElementById('mkt-ctx-wrap').style.display = 'block';
+
+  const ctxRow = (label, val, color) =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <span style="font-size:11px;color:var(--text-muted)">${label}</span>
+      <span style="font-size:12px;font-weight:500${color ? ';color:' + color : ''}">${val}</span>
+    </div>`;
+
+  // Market rows
+  const mktEl = document.getElementById('ctx-market-rows');
+  let mktHtml = '';
+  if (ctx.es_price) mktHtml += ctxRow('ES Price', ctx.es_price);
+  if (ctx.overnight_change) {
+    const isPos = ctx.overnight_change.startsWith('+');
+    mktHtml += ctxRow('Overnight', ctx.overnight_change, isPos ? '#0F6E56' : '#A32D2D');
+  }
+  if (ctx.pm_range) {
+    const rc = parseFloat(ctx.pm_range) > 15 ? '#0F6E56' : parseFloat(ctx.pm_range) < 8 ? '#A32D2D' : null;
+    mktHtml += ctxRow('PM Range', `${ctx.pm_range} pts`, rc);
+  }
+  if (ctx.vix) {
+    const vc = parseFloat(ctx.vix) > 30 ? '#A32D2D' : parseFloat(ctx.vix) > 20 ? '#854F0B' : '#0F6E56';
+    mktHtml += ctxRow('VIX', ctx.vix, vc);
+  }
+  mktEl.innerHTML = mktHtml || '<span style="font-size:11px;color:var(--text-muted)">No data</span>';
+
+  // Walls rows
+  const wallsEl = document.getElementById('ctx-walls-rows');
+  let wallsHtml = '';
+  if (ctx.call_wall?.spy) wallsHtml += ctxRow('Call Wall', `SPY ${ctx.call_wall.spy}`, '#0F6E56');
+  if (ctx.put_wall?.spy)  wallsHtml += ctxRow('Put Wall',  `SPY ${ctx.put_wall.spy}`,  '#A32D2D');
+  if (ctx.max_pain?.spy)  wallsHtml += ctxRow('Max Pain',  `SPY ${ctx.max_pain.spy}`);
+  if (ctx.pc_ratio?.value) {
+    const pc = parseFloat(ctx.pc_ratio.value);
+    const pc_c = pc > 1.2 ? '#A32D2D' : pc < 0.8 ? '#0F6E56' : null;
+    wallsHtml += ctxRow('P/C Ratio', `${ctx.pc_ratio.value} (${ctx.pc_ratio.tag})`, pc_c);
+  }
+  wallsEl.innerHTML = wallsHtml || '<span style="font-size:11px;color:var(--text-muted)">No data</span>';
+
+  // News events
+  const newsEl = document.getElementById('ctx-news-rows');
+  if (ctx.news_events && ctx.news_events.length > 0) {
+    const ic = { High: '#A32D2D', Medium: '#854F0B' };
+    const bc = { bullish: '#0F6E56', bearish: '#A32D2D', neutral: 'var(--text-muted)', mixed: '#854F0B' };
+    let newsHtml = `<div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border);margin-bottom:6px">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">News Events</div>`;
+    for (const ev of ctx.news_events) {
+      const evBc = bc[ev.bias] || 'var(--text-muted)';
+      const evIc = ic[ev.impact] || 'var(--text-muted)';
+      newsHtml += `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:0.5px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <span style="font-size:11px;font-weight:500;flex:1;margin-right:8px">${ev.name}</span>
+          <span style="font-size:10px;color:${evIc};font-weight:600;white-space:nowrap">${ev.impact.toUpperCase()}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px">
+          <span style="font-size:11px;color:var(--text-muted)">${ev.time}</span>
+          ${ev.actual != null ? `<span style="font-size:11px">A: <b>${ev.actual}</b> F: ${ev.forecast ?? '—'}</span>` : '<span style="font-size:11px;color:var(--text-muted)">Pending</span>'}
+        </div>
+        ${ev.surprise ? `<div style="margin-top:3px;font-size:11px;color:${evBc}">${ev.surprise}</div>` : ''}
+      </div>`;
+    }
+    newsHtml += '</div>';
+    newsEl.innerHTML = newsHtml;
+  } else {
+    newsEl.innerHTML = '';
+  }
+
+  // Bias badge + warning row
+  const badge   = document.getElementById('news-bias-badge');
+  const biasRow = document.getElementById('ctx-bias-row');
+  const biasTxt = document.getElementById('ctx-bias-text');
+
+  if (ctx.news_bias && ctx.news_bias !== 'none') {
+    badge.style.display = 'inline-block';
+    const isLong = signal.direction === 'LONG';
+    const conflicts = (ctx.news_bias === 'bullish' && !isLong) || (ctx.news_bias === 'bearish' && isLong);
+
+    if (ctx.news_bias === 'bullish') {
+      badge.textContent = '📈 Bullish news';
+      badge.style.background = '#E1F5EE'; badge.style.color = '#0F6E56';
+    } else if (ctx.news_bias === 'bearish') {
+      badge.textContent = '📉 Bearish news';
+      badge.style.background = '#FCEBEB'; badge.style.color = '#A32D2D';
+    } else {
+      badge.textContent = '⚡ Mixed news';
+      badge.style.background = '#FFF8E6'; badge.style.color = '#854F0B';
+    }
+
+    if (conflicts) {
+      biasRow.style.display = 'flex';
+      biasRow.style.background = '#FFF8E6';
+      biasRow.querySelector('i').style.color = '#854F0B';
+      biasTxt.style.color = '#854F0B';
+      biasTxt.textContent = `News bias conflicts with ${signal.direction} signal — consider lower confidence`;
+    } else {
+      biasRow.style.display = 'none';
+    }
+  } else {
+    badge.style.display = 'none';
+    biasRow.style.display = 'none';
+  }
 }
 
 // ── Admin: regenerate signal manually ────────────────────────────────────
