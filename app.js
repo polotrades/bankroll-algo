@@ -57,6 +57,7 @@ async function checkPassword() {
     if (data.role) {
       userRole = data.role;
       localStorage.setItem('ba_role', userRole);
+      if (data.role === 'admin') localStorage.setItem('ba_admin_key', pw);
       applyRole();
       closeUnlock();
     } else {
@@ -332,9 +333,7 @@ async function adminRegenerateSignal() {
   txt.textContent = 'Generating...';
 
   try {
-    const adminPw = prompt('Enter admin password to confirm:');
-    if (!adminPw) { btn.disabled = false; txt.textContent = 'Regenerate Signal Now'; return; }
-
+    const adminPw = localStorage.getItem('ba_admin_key') || '';
     const regenEndpoint = currentSession === 'asia' ? '/api/generate-asia-signal' : '/api/generate-signal';
     const res = await fetch(regenEndpoint, {
       method: 'POST',
