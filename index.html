@@ -75,7 +75,6 @@
     <div class="tab active" onclick="switchTab('signal')">Signal</div>
     <div class="tab" onclick="switchTab('performance')">Performance</div>
     <div class="tab" onclick="switchTab('market')">Market Data</div>
-    <div class="tab" onclick="switchTab('journal')">Journal</div>
   </div>
 
   <!-- ===== SIGNAL TAB ===== -->
@@ -85,13 +84,13 @@
       <div class="date-str" id="today-date"></div>
     </div>
     <!-- Session toggle -->
-    <div style="display:flex;gap:8px;margin-bottom:12px">
+    <div style="display:flex;gap:0;margin-bottom:14px;background:var(--surface-2);border:0.5px solid var(--border-med);border-radius:10px;padding:3px">
       <button id="sess-ny" onclick="switchSession('ny')"
-        style="flex:1;padding:9px;border-radius:10px;border:1.5px solid #534AB7;background:#534AB7;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s">
+        style="flex:1;padding:9px;border-radius:8px;border:none;background:var(--purple);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em">
         NY Session
       </button>
       <button id="sess-asia" onclick="switchSession('asia')"
-        style="flex:1;padding:9px;border-radius:10px;border:1.5px solid #e0e0e8;background:transparent;color:#888;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s">
+        style="flex:1;padding:9px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em">
         Asia Session
       </button>
     </div>

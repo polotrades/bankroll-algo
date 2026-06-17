@@ -7,12 +7,13 @@ function applySessionUI(sess) {
   const nyBtn   = document.getElementById('sess-ny');
   const asiaBtn = document.getElementById('sess-asia');
   if (!nyBtn || !asiaBtn) return;
+  const base = 'flex:1;padding:9px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em';
   if (sess === 'ny') {
-    nyBtn.style.cssText   = 'flex:1;padding:9px;border-radius:10px;border:1.5px solid #534AB7;background:#534AB7;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit';
-    asiaBtn.style.cssText = 'flex:1;padding:9px;border-radius:10px;border:1.5px solid #e0e0e8;background:transparent;color:#888;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit';
+    nyBtn.style.cssText   = base + ';background:var(--purple,#6B5FD0);color:#fff';
+    asiaBtn.style.cssText = base + ';background:transparent;color:var(--text-muted,#52526A)';
   } else {
-    asiaBtn.style.cssText = 'flex:1;padding:9px;border-radius:10px;border:1.5px solid #534AB7;background:#534AB7;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit';
-    nyBtn.style.cssText   = 'flex:1;padding:9px;border-radius:10px;border:1.5px solid #e0e0e8;background:transparent;color:#888;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit';
+    asiaBtn.style.cssText = base + ';background:var(--purple,#6B5FD0);color:#fff';
+    nyBtn.style.cssText   = base + ';background:transparent;color:var(--text-muted,#52526A)';
   }
 }
 
@@ -96,7 +97,7 @@ function applyRole() {
 // ── Tab switching ─────────────────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['signal','performance','market','journal'][i] === name);
+    t.classList.toggle('active', ['signal','performance','market'][i] === name);
   });
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
@@ -363,8 +364,8 @@ const TODAY_DAY = new Date().getDate();
 function loadResults() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : { 1: 'win', 3: 'win', 4: 'loss' };
-  } catch { return { 1: 'win', 3: 'win', 4: 'loss' }; }
+    return raw ? JSON.parse(raw) : { 3: 'win', 4: 'win', 9: 'loss' };
+  } catch { return { 3: 'win', 4: 'win', 9: 'loss' }; }
 }
 function saveResults(r) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(r)); } catch {}
