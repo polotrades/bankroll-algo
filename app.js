@@ -1,5 +1,32 @@
 // ── Bankroll Algo v2 · app.js ─────────────────────────────────────────────
 
+// ── Session ───────────────────────────────────────────────────────────────
+let currentSession = localStorage.getItem('ba_session') || 'ny'; // ny | asia
+
+function applySessionUI(sess) {
+  const nyBtn   = document.getElementById('sess-ny');
+  const asiaBtn = document.getElementById('sess-asia');
+  if (!nyBtn || !asiaBtn) return;
+  if (sess === 'ny') {
+    nyBtn.style.cssText   = 'flex:1;padding:9px;border-radius:10px;border:1.5px solid #534AB7;background:#534AB7;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit';
+    asiaBtn.style.cssText = 'flex:1;padding:9px;border-radius:10px;border:1.5px solid #e0e0e8;background:transparent;color:#888;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit';
+  } else {
+    asiaBtn.style.cssText = 'flex:1;padding:9px;border-radius:10px;border:1.5px solid #534AB7;background:#534AB7;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit';
+    nyBtn.style.cssText   = 'flex:1;padding:9px;border-radius:10px;border:1.5px solid #e0e0e8;background:transparent;color:#888;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit';
+  }
+}
+
+function switchSession(sess) {
+  currentSession = sess;
+  localStorage.setItem('ba_session', sess);
+  applySessionUI(sess);
+  document.getElementById('mkt-ctx-wrap').style.display = 'none';
+  document.getElementById('signal-loading').style.display = 'block';
+  document.getElementById('signal-body').style.display   = 'none';
+  document.getElementById('signal-empty').style.display  = 'none';
+  loadSignal();
+}
+
 // ── Access control ────────────────────────────────────────────────────────
 let userRole = localStorage.getItem('ba_role') || 'preview'; // preview | member | admin
 
@@ -83,8 +110,9 @@ document.getElementById('today-date').textContent = new Date().toLocaleDateStrin
 
 // ── Load today's signal from API ──────────────────────────────────────────
 async function loadSignal() {
+  const endpoint = currentSession === 'asia' ? '/api/get-asia-signal' : '/api/get-signal';
   try {
-    const res = await fetch('/api/get-signal');
+    const res = await fetch(endpoint);
     const data = await res.json();
 
     document.getElementById('signal-loading').style.display = 'none';
@@ -155,12 +183,23 @@ function populateSignal(signal) {
   document.getElementById('conf-3-val').textContent = signal.confluence_3 || '—';
   document.getElementById('conf-public').textContent = signal.confluence_public || 'Overnight Range';
 
+  // Entry label — differs between sessions
+  const entryEl = document.getElementById('entry-session-val');
+  if (entryEl) {
+    if (signal.session === 'Asia') {
+      entryEl.textContent = signal.entry_range ? `Asia Open · ${signal.entry_range}` : 'Asia Market Open';
+    } else {
+      entryEl.textContent = 'NYSE Market Open';
+    }
+  }
+
   // Generated time
   if (signal.generated_at) {
     const t = new Date(signal.generated_at).toLocaleTimeString('en-US', {
       hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles', timeZoneName: 'short'
     });
-    document.getElementById('signal-time').textContent = `Generated at ${t}`;
+    const sess = signal.session === 'Asia' ? ' · Asia' : ' · NY';
+    document.getElementById('signal-time').textContent = `Generated at ${t}${sess}`;
   }
 
   // Market context panel
@@ -295,7 +334,8 @@ async function adminRegenerateSignal() {
     const adminPw = prompt('Enter admin password to confirm:');
     if (!adminPw) { btn.disabled = false; txt.textContent = 'Regenerate Signal Now'; return; }
 
-    const res = await fetch('/api/generate-signal', {
+    const regenEndpoint = currentSession === 'asia' ? '/api/generate-asia-signal' : '/api/generate-signal';
+    const res = await fetch(regenEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ admin_key: adminPw })
@@ -470,6 +510,7 @@ function initCharts() {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 applyRole();
+applySessionUI(currentSession);
 buildCalendar();
 updateStats();
 loadSignal();

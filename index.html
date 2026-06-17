@@ -84,6 +84,18 @@
       <div class="active-pill"><div class="active-dot"></div>Active</div>
       <div class="date-str" id="today-date"></div>
     </div>
+    <!-- Session toggle -->
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button id="sess-ny" onclick="switchSession('ny')"
+        style="flex:1;padding:9px;border-radius:10px;border:1.5px solid #534AB7;background:#534AB7;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s">
+        NY Session
+      </button>
+      <button id="sess-asia" onclick="switchSession('asia')"
+        style="flex:1;padding:9px;border-radius:10px;border:1.5px solid #e0e0e8;background:transparent;color:#888;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s">
+        Asia Session
+      </button>
+    </div>
+
     <div class="subtab-row">
       <div class="subtab active">ES Futures</div>
       <div class="subtab">SPY Options</div>
@@ -139,7 +151,7 @@
         <div>
           <div class="card">
             <div class="entry-card">
-              <div><div class="entry-label">Entry</div><div class="entry-val">NYSE Market Open</div></div>
+              <div><div class="entry-label">Entry</div><div class="entry-val" id="entry-session-val">NYSE Market Open</div></div>
               <div class="entry-badge">Market Order</div>
             </div>
             <div class="tp-sl-grid">
