@@ -98,8 +98,8 @@ export default async function handler(req, res) {
 
     // ── SPY Options via CBOE free API ────────────────────────────────────
     try {
-      const cboeRes = await fetch('https://cdn.cboe.com/api/global/delayed_quotes/options/_SPY.json', {
-        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+      const cboeRes = await fetch('https://cdn.cboe.com/api/global/delayed_quotes/options/SPY.json', {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'application/json' }
       });
       if (cboeRes.ok) {
         const cboeData = await cboeRes.json();
@@ -108,8 +108,9 @@ export default async function handler(req, res) {
 
         if (options.length && spot > 0) {
           const lo = spot * 0.95, hi = spot * 1.05;
-          const calls = options.filter(o => o.option?.charAt(15) === 'C' && parseFloat(o.strike_price) >= lo && parseFloat(o.strike_price) <= hi);
-          const puts  = options.filter(o => o.option?.charAt(15) === 'P' && parseFloat(o.strike_price) >= lo && parseFloat(o.strike_price) <= hi);
+          // CBOE has option_type field ("C"/"P") and strike_price as number
+          const calls = options.filter(o => (o.option_type === 'C' || o.option?.charAt(9) === 'C') && parseFloat(o.strike_price) >= lo && parseFloat(o.strike_price) <= hi);
+          const puts  = options.filter(o => (o.option_type === 'P' || o.option?.charAt(9) === 'P') && parseFloat(o.strike_price) >= lo && parseFloat(o.strike_price) <= hi);
 
           const byOI = (arr) => arr.reduce((a, b) => (b.volume || 0) > (a.volume || 0) ? b : a, arr[0]);
           const callWall = calls.length ? byOI(calls) : null;

@@ -244,6 +244,9 @@ function renderMarketContext(signal) {
   if (!ctx) return;
 
   document.getElementById('mkt-ctx-wrap').style.display = 'block';
+  // Auto-expand the panel so data is visible without clicking
+  document.getElementById('mkt-ctx-body').style.display = 'block';
+  document.getElementById('mkt-ctx-chev').style.transform = 'rotate(180deg)';
 
   const ctxRow = (label, val, color) =>
     `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">

@@ -16,12 +16,19 @@ export default async function handler(req, res) {
   } catch(e) { results.es_error = e.message; }
 
   try {
-    const r = await fetch('https://query2.finance.yahoo.com/v7/finance/options/SPY', { headers: YF_HEADERS });
+    const r = await fetch('https://cdn.cboe.com/api/global/delayed_quotes/options/SPY.json', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'application/json' }
+    });
     const d = await r.json();
-    results.spy_opts_status = r.status;
-    results.spy_spot = d?.optionChain?.result?.[0]?.quote?.regularMarketPrice ?? null;
-    results.spy_calls_count = d?.optionChain?.result?.[0]?.options?.[0]?.calls?.length ?? 0;
-  } catch(e) { results.spy_opts_error = e.message; }
+    results.cboe_status = r.status;
+    results.cboe_spot = d?.data?.current_price ?? null;
+    results.cboe_opts_count = d?.data?.options?.length ?? 0;
+    if (d?.data?.options?.length > 0) {
+      const sample = d.data.options[0];
+      results.cboe_sample_keys = Object.keys(sample);
+      results.cboe_sample = sample;
+    }
+  } catch(e) { results.cboe_error = e.message; }
 
   try {
     const r = await fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS });
