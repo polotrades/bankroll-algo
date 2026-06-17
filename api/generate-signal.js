@@ -1,4 +1,4 @@
-// api/generate-signal.js
+// api/generate-signal.js v2 — with market_context
 // Runs automatically at 6:00 AM PT (13:00 UTC) Mon–Fri via Vercel Cron
 // Also callable manually via POST /api/generate-signal?admin_key=YOUR_ADMIN_KEY
 
