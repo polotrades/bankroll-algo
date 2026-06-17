@@ -108,25 +108,30 @@ export default async function handler(req, res) {
 
         if (options.length && spot > 0) {
           const lo = spot * 0.95, hi = spot * 1.05;
-          // CBOE has option_type field ("C"/"P") and strike_price as number
-          const calls = options.filter(o => (o.option_type === 'C' || o.option?.charAt(9) === 'C') && parseFloat(o.strike_price) >= lo && parseFloat(o.strike_price) <= hi);
-          const puts  = options.filter(o => (o.option_type === 'P' || o.option?.charAt(9) === 'P') && parseFloat(o.strike_price) >= lo && parseFloat(o.strike_price) <= hi);
+          // CBOE option string: "SPY260616C00500000"
+          //   chars 0-2: symbol, 3-8: YYMMDD, 9: C/P, 10-17: strike*1000
+          const getType   = (o) => o.option?.charAt(9) || '';
+          const getStrike = (o) => parseInt(o.option?.slice(10) || '0') / 1000;
 
-          const byOI = (arr) => arr.reduce((a, b) => (b.volume || 0) > (a.volume || 0) ? b : a, arr[0]);
+          const calls = options.filter(o => getType(o) === 'C' && getStrike(o) >= lo && getStrike(o) <= hi);
+          const puts  = options.filter(o => getType(o) === 'P' && getStrike(o) >= lo && getStrike(o) <= hi);
+
+          // Use open_interest for walls (highest OI = biggest hedging zone)
+          const byOI = (arr) => arr.reduce((a, b) => (b.open_interest || 0) > (a.open_interest || 0) ? b : a, arr[0]);
           const callWall = calls.length ? byOI(calls) : null;
           const putWall  = puts.length  ? byOI(puts)  : null;
 
-          const totalCallOI = calls.reduce((s, o) => s + (o.volume || 0), 0);
-          const totalPutOI  = puts.reduce((s, o)  => s + (o.volume || 0), 0);
+          const totalCallOI = calls.reduce((s, o) => s + (o.open_interest || 0), 0);
+          const totalPutOI  = puts.reduce((s, o)  => s + (o.open_interest || 0), 0);
           const pcRatio = totalCallOI > 0 ? (totalPutOI / totalCallOI).toFixed(2) : null;
           const pcTag   = pcRatio ? (parseFloat(pcRatio) > 1.2 ? 'bearish lean' : parseFloat(pcRatio) < 0.8 ? 'bullish lean' : 'neutral') : '';
 
           const spyToES = (p) => p ? (parseFloat(p) * 10).toFixed(0) : 'N/A';
-          const cStrike = callWall?.strike_price;
-          const pStrike = putWall?.strike_price;
+          const cStrike = callWall ? getStrike(callWall) : null;
+          const pStrike = putWall  ? getStrike(putWall)  : null;
 
-          ctx.call_wall = cStrike ? { spy: parseFloat(cStrike).toFixed(0), es: spyToES(cStrike), oi: (callWall.volume||0).toLocaleString() } : null;
-          ctx.put_wall  = pStrike ? { spy: parseFloat(pStrike).toFixed(0), es: spyToES(pStrike), oi: (putWall.volume||0).toLocaleString() }  : null;
+          ctx.call_wall = cStrike ? { spy: cStrike.toFixed(0), es: spyToES(cStrike), oi: (callWall.open_interest||0).toLocaleString() } : null;
+          ctx.put_wall  = pStrike ? { spy: pStrike.toFixed(0),  es: spyToES(pStrike),  oi: (putWall.open_interest||0).toLocaleString()  } : null;
           ctx.pc_ratio  = pcRatio ? { value: pcRatio, tag: pcTag } : null;
 
           if (ctx.call_wall || ctx.put_wall) {
