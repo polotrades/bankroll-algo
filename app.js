@@ -25,6 +25,8 @@ function switchSession(sess) {
   document.getElementById('signal-loading').style.display = 'block';
   document.getElementById('signal-body').style.display   = 'none';
   document.getElementById('signal-empty').style.display  = 'none';
+  buildCalendar();
+  updateStats();
   loadSignal();
 }
 
@@ -357,23 +359,37 @@ async function adminRegenerateSignal() {
 }
 
 // ── Calendar ──────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'bankroll_algo_results';
+const STORAGE_KEY_NY   = 'bankroll_algo_results_ny';
+const STORAGE_KEY_ASIA = 'bankroll_algo_results_asia';
 const TODAY_DAY = new Date().getDate();
 
-function loadResults() {
+function getStorageKey() {
+  return currentSession === 'asia' ? STORAGE_KEY_ASIA : STORAGE_KEY_NY;
+}
+
+function loadResults(key) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : { 3: 'win', 4: 'win', 9: 'loss' };
-  } catch { return { 3: 'win', 4: 'win', 9: 'loss' }; }
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
 }
 function saveResults(r) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(r)); } catch {}
+  try { localStorage.setItem(getStorageKey(), JSON.stringify(r)); } catch {}
 }
 
-let results = loadResults();
+let nyResults   = loadResults(STORAGE_KEY_NY);
+let asiaResults = loadResults(STORAGE_KEY_ASIA);
 
-function getWins() { return Object.values(results).filter(v => v === 'win').length; }
-function getLosses() { return Object.values(results).filter(v => v === 'loss').length; }
+function getResults() {
+  return currentSession === 'asia' ? asiaResults : nyResults;
+}
+function setResults(r) {
+  if (currentSession === 'asia') asiaResults = r;
+  else nyResults = r;
+}
+
+function getWins() { return Object.values(getResults()).filter(v => v === 'win').length; }
+function getLosses() { return Object.values(getResults()).filter(v => v === 'loss').length; }
 
 function updateStats() {
   const w = getWins(), l = getLosses(), total = w + l;
@@ -413,9 +429,10 @@ function updateStats() {
   const th = document.getElementById('trade-history');
   if (th) {
     th.innerHTML = '';
-    const days = Object.keys(results).map(Number).sort((a,b) => a - b);
+    const cur = getResults();
+    const days = Object.keys(cur).map(Number).sort((a,b) => a - b);
     days.forEach(d => {
-      const r = results[d];
+      const r = cur[d];
       if (r === 'win' || r === 'loss') {
         const dot = document.createElement('div');
         dot.className = 'th-dot ' + (r === 'win' ? 'w' : 'l');
@@ -441,20 +458,22 @@ function buildCalendar() {
     el.className = 'cal-day';
     el.textContent = d;
     el.onclick = () => cycleDay(d);
+    const r = getResults();
     if (d === TODAY_DAY) el.classList.add('today');
-    else if (results[d] === 'win') el.classList.add('win');
-    else if (results[d] === 'loss') el.classList.add('loss');
+    else if (r[d] === 'win') el.classList.add('win');
+    else if (r[d] === 'loss') el.classList.add('loss');
     else if (d > TODAY_DAY) el.classList.add('future');
     grid.appendChild(el);
   }
 }
 
 function cycleDay(d) {
-  const cur = results[d];
-  if (!cur) results[d] = 'win';
-  else if (cur === 'win') results[d] = 'loss';
-  else delete results[d];
-  saveResults(results);
+  const r = getResults();
+  if (!r[d]) r[d] = 'win';
+  else if (r[d] === 'win') r[d] = 'loss';
+  else delete r[d];
+  setResults(r);
+  saveResults(r);
   buildCalendar();
   updateStats();
 }
