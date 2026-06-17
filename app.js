@@ -368,13 +368,26 @@ function getStorageKey() {
 }
 
 function loadResults(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
+  try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : {}; }
+  catch { return {}; }
 }
 function saveResults(r) {
+  // save locally first (instant)
   try { localStorage.setItem(getStorageKey(), JSON.stringify(r)); } catch {}
+  // then persist to Redis (syncs across devices)
+  fetch('/api/save-results', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session: currentSession, results: r })
+  }).catch(() => {});
+}
+
+async function fetchResultsFromRedis(sess) {
+  try {
+    const res  = await fetch(`/api/get-results?session=${sess}`);
+    const data = await res.json();
+    return data.results || {};
+  } catch { return {}; }
 }
 
 let nyResults   = loadResults(STORAGE_KEY_NY);
@@ -568,3 +581,14 @@ applySessionUI(currentSession);
 buildCalendar();
 updateStats();
 loadSignal();
+
+// Load real results from Redis (syncs phone + desktop)
+Promise.all([
+  fetchResultsFromRedis('ny'),
+  fetchResultsFromRedis('asia')
+]).then(([ny, asia]) => {
+  if (Object.keys(ny).length)   { nyResults   = ny;   localStorage.setItem(STORAGE_KEY_NY,   JSON.stringify(ny));   }
+  if (Object.keys(asia).length) { asiaResults = asia; localStorage.setItem(STORAGE_KEY_ASIA, JSON.stringify(asia)); }
+  buildCalendar();
+  updateStats();
+});
