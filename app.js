@@ -430,7 +430,7 @@ const barsEl = document.getElementById('activity-bars');
   const b = document.createElement('div');
   b.className = 'bar-item';
   b.style.height = h + '%';
-  b.style.background = i === arr.length - 1 ? '#534AB7' : '#EEEDFE';
+  b.style.background = i === arr.length - 1 ? '#7065D4' : 'rgba(112,101,212,0.2)';
   barsEl.appendChild(b);
 });
 
