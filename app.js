@@ -3,7 +3,7 @@
 // ── Session ───────────────────────────────────────────────────────────────
 let currentSession = localStorage.getItem('ba_session') || 'ny'; // ny | asia
 
-function buildBacktestCard() {
+function buildBacktestCard(sess = 'ny') {
   const TP_USD = 450;
   const SL_USD = 550;
   const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -19,7 +19,7 @@ function buildBacktestCard() {
   const monthlyData = [];
   const allTrades = [];
   for (const {y, m} of months) {
-    const key = `ba_res_ny_${y}_${String(m+1).padStart(2,'0')}`;
+    const key = `ba_res_${sess}_${y}_${String(m+1).padStart(2,'0')}`;
     let dayMap; try { dayMap = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { continue; }
     if (!dayMap) continue;
     let mW = 0, mL = 0, mPnl = 0;
@@ -44,7 +44,7 @@ function buildBacktestCard() {
     maxDd = Math.max(maxDd, peak - equity);
   }
   const total = totalW + totalL;
-  const container = document.getElementById('bt-ny');
+  const container = document.getElementById(`bt-${sess}`);
   if (!container) return;
   if (total === 0) {
     container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">No calendar data yet.<br>Tap days in the calendar to log W/L.</div>`;
@@ -714,7 +714,8 @@ function cycleDay(d) {
   setCalResults(r);
   buildCalendar();
   updateStats();
-  buildBacktestCard();
+  buildBacktestCard('ny');
+  buildBacktestCard('asia');
 }
 
 // ── Activity bars ─────────────────────────────────────────────────────────
@@ -807,7 +808,8 @@ applySessionUI(currentSession);
 applyBacktestUI(currentSession);
 buildCalendar();
 updateStats();
-buildBacktestCard();
+buildBacktestCard('ny');
+buildBacktestCard('asia');
 loadSignal();
 
 // Load real results from Redis (syncs phone + desktop)
