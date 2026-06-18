@@ -3,6 +3,14 @@
 // ── Session ───────────────────────────────────────────────────────────────
 let currentSession = localStorage.getItem('ba_session') || 'ny'; // ny | asia
 
+function applyBacktestUI(sess) {
+  const btNY   = document.getElementById('bt-ny');
+  const btAsia = document.getElementById('bt-asia');
+  if (!btNY || !btAsia) return;
+  btNY.style.display   = sess === 'ny'   ? 'block' : 'none';
+  btAsia.style.display = sess === 'asia' ? 'block' : 'none';
+}
+
 function applySessionUI(sess) {
   const nyBtn   = document.getElementById('sess-ny');
   const asiaBtn = document.getElementById('sess-asia');
@@ -21,6 +29,7 @@ function switchSession(sess) {
   currentSession = sess;
   localStorage.setItem('ba_session', sess);
   applySessionUI(sess);
+  applyBacktestUI(sess);
   document.getElementById('mkt-ctx-wrap').style.display = 'none';
   document.getElementById('signal-loading').style.display = 'block';
   document.getElementById('signal-body').style.display   = 'none';
@@ -634,6 +643,7 @@ function initCharts() {
 // ── Init ──────────────────────────────────────────────────────────────────
 applyRole();
 applySessionUI(currentSession);
+applyBacktestUI(currentSession);
 buildCalendar();
 updateStats();
 loadSignal();
