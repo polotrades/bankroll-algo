@@ -276,8 +276,10 @@
           </div>
           <div class="card">
             <div class="cal-header">
-              <span class="cal-title">June 2026</span>
-              <span class="cal-hint">tap day to edit</span>
+              <button onclick="calNav(-1)" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;font-family:inherit">‹</button>
+              <span class="cal-title" id="cal-title">June 2026</span>
+              <button onclick="calNav(1)" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;font-family:inherit">›</button>
+              <span class="cal-hint" id="cal-hint">tap day to edit</span>
             </div>
             <div class="cal-grid" id="cal-grid"></div>
             <div class="cal-stats" id="cal-stats"></div>
@@ -321,48 +323,11 @@
     <div class="card" style="margin-top:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <div class="card-label" style="margin-bottom:0">Backtest Results</div>
-        <span style="font-size:11px;color:var(--text-muted);background:var(--surface-2);padding:3px 8px;border-radius:6px;border:0.5px solid var(--border)">Jan – Jun 2026</span>
+        <span id="bt-date-label" style="font-size:11px;color:var(--text-muted);background:var(--surface-2);padding:3px 8px;border-radius:6px;border:0.5px solid var(--border)">2026 YTD</span>
       </div>
 
-      <!-- NY Backtest -->
-      <div id="bt-ny">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-          <div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border);text-align:center">
-            <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Win Rate</div>
-            <div style="font-size:20px;font-weight:600;color:var(--green)">88.2%</div>
-            <div style="font-size:11px;color:var(--text-muted)">97W / 13L</div>
-          </div>
-          <div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border);text-align:center">
-            <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Net P&L</div>
-            <div style="font-size:20px;font-weight:600;color:var(--green)">+$36,500</div>
-            <div style="font-size:11px;color:var(--text-muted)">110 trades</div>
-          </div>
-          <div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border);text-align:center">
-            <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Profit Factor</div>
-            <div style="font-size:20px;font-weight:600;color:var(--gold)">6.10</div>
-            <div style="font-size:11px;color:var(--text-muted)">Max DD: -$1,100</div>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-          <div style="background:var(--bg);border-radius:8px;padding:8px 12px;border:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:11px;color:var(--text-muted)">Best Streak</span>
-            <span style="font-size:13px;font-weight:600;color:var(--green)">21W</span>
-          </div>
-          <div style="background:var(--bg);border-radius:8px;padding:8px 12px;border:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:11px;color:var(--text-muted)">Worst Streak</span>
-            <span style="font-size:13px;font-weight:600;color:var(--red)">2L</span>
-          </div>
-        </div>
-        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Monthly Breakdown</div>
-        <div style="display:flex;flex-direction:column;gap:5px">
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg);border-radius:7px;border:0.5px solid var(--border)"><span style="font-size:12px">Jan 2026</span><span style="font-size:11px;color:var(--text-muted)">11W / 4L</span><span style="font-size:11px;color:var(--text-muted)">73%</span><span style="font-size:12px;font-weight:500;color:var(--green)">+$2,750</span></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg);border-radius:7px;border:0.5px solid var(--border)"><span style="font-size:12px">Feb 2026</span><span style="font-size:11px;color:var(--text-muted)">18W / 1L</span><span style="font-size:11px;color:var(--text-muted)">95%</span><span style="font-size:12px;font-weight:500;color:var(--green)">+$7,550</span></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg);border-radius:7px;border:0.5px solid var(--border)"><span style="font-size:12px">Mar 2026</span><span style="font-size:11px;color:var(--text-muted)">21W / 1L</span><span style="font-size:11px;color:var(--text-muted)">96%</span><span style="font-size:12px;font-weight:500;color:var(--green)">+$8,900</span></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg);border-radius:7px;border:0.5px solid var(--border)"><span style="font-size:12px">Apr 2026</span><span style="font-size:11px;color:var(--text-muted)">20W / 1L</span><span style="font-size:11px;color:var(--text-muted)">95%</span><span style="font-size:12px;font-weight:500;color:var(--green)">+$8,450</span></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg);border-radius:7px;border:0.5px solid var(--border)"><span style="font-size:12px">May 2026</span><span style="font-size:11px;color:var(--text-muted)">16W / 4L</span><span style="font-size:11px;color:var(--text-muted)">80%</span><span style="font-size:12px;font-weight:500;color:var(--green)">+$5,000</span></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg);border-radius:7px;border:0.5px solid var(--border)"><span style="font-size:12px">Jun 2026</span><span style="font-size:11px;color:var(--text-muted)">11W / 2L</span><span style="font-size:11px;color:var(--text-muted)">85%</span><span style="font-size:12px;font-weight:500;color:var(--green)">+$3,850</span></div>
-        </div>
-      </div>
+      <!-- NY Backtest — rendered dynamically from calendar data -->
+      <div id="bt-ny"></div>
 
       <!-- Asia Backtest -->
       <div id="bt-asia" style="display:none">

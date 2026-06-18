@@ -3,6 +3,103 @@
 // ── Session ───────────────────────────────────────────────────────────────
 let currentSession = localStorage.getItem('ba_session') || 'ny'; // ny | asia
 
+function buildBacktestCard() {
+  const TP_USD = 450;
+  const SL_USD = 550;
+  const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const now = new Date();
+  const months = [];
+  for (let y = 2026; y <= now.getFullYear(); y++) {
+    const end = (y === now.getFullYear()) ? now.getMonth() : 11;
+    for (let m = 0; m <= end; m++) months.push({y, m});
+  }
+  let totalW = 0, totalL = 0, totalPnl = 0;
+  let equity = 0, peak = 0, maxDd = 0;
+  let bestStreak = 0, worstStreak = 0, curW = 0, curL = 0;
+  const monthlyData = [];
+  const allTrades = [];
+  for (const {y, m} of months) {
+    const key = `ba_res_ny_${y}_${String(m+1).padStart(2,'0')}`;
+    let dayMap; try { dayMap = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { continue; }
+    if (!dayMap) continue;
+    let mW = 0, mL = 0, mPnl = 0;
+    for (const day of Object.keys(dayMap).map(Number).sort((a,b)=>a-b)) {
+      const v = dayMap[String(day)];
+      if (v === 'win')  { mW++; mPnl += TP_USD; allTrades.push('win'); }
+      else if (v === 'loss') { mL++; mPnl -= SL_USD; allTrades.push('loss'); }
+    }
+    if (mW + mL === 0) continue;
+    totalW += mW; totalL += mL; totalPnl += mPnl;
+    monthlyData.push({y, m, mW, mL, mPnl});
+  }
+  // streaks + drawdown
+  for (const t of allTrades) {
+    if (t === 'win')  { curW++; curL = 0; bestStreak  = Math.max(bestStreak,  curW); }
+    else              { curL++; curW = 0; worstStreak = Math.max(worstStreak, curL); }
+  }
+  equity = 0; peak = 0;
+  for (const t of allTrades) {
+    equity += t === 'win' ? TP_USD : -SL_USD;
+    peak = Math.max(peak, equity);
+    maxDd = Math.max(maxDd, peak - equity);
+  }
+  const total = totalW + totalL;
+  const container = document.getElementById('bt-ny');
+  if (!container) return;
+  if (total === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">No calendar data yet.<br>Tap days in the calendar to log W/L.</div>`;
+    return;
+  }
+  const wr = (totalW / total * 100).toFixed(1);
+  const wrColor = parseFloat(wr) >= 60 ? 'var(--green)' : parseFloat(wr) >= 50 ? 'var(--gold)' : 'var(--red)';
+  const pf = totalL > 0 ? (totalW * TP_USD / (totalL * SL_USD)).toFixed(2) : '∞';
+  const pfColor = parseFloat(pf) >= 1.5 ? 'var(--green)' : parseFloat(pf) >= 1 ? 'var(--gold)' : 'var(--red)';
+  const pnlStr = (totalPnl >= 0 ? '+' : '-') + '$' + Math.abs(totalPnl).toLocaleString();
+  const pnlColor = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+  const monthRows = monthlyData.map(({y, m, mW, mL, mPnl}) => {
+    const mt = mW + mL;
+    const mWr = mt > 0 ? Math.round(mW / mt * 100) : 0;
+    const mc = mPnl >= 0 ? 'var(--green)' : 'var(--red)';
+    const ms = (mPnl >= 0 ? '+' : '-') + '$' + Math.abs(mPnl).toLocaleString();
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg);border-radius:7px;border:0.5px solid var(--border)">
+      <span style="font-size:12px">${MN[m]} ${y}</span>
+      <span style="font-size:11px;color:var(--text-muted)">${mW}W / ${mL}L</span>
+      <span style="font-size:11px;color:var(--text-muted)">${mWr}%</span>
+      <span style="font-size:12px;font-weight:500;color:${mc}">${ms}</span>
+    </div>`;
+  }).join('');
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+      <div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border);text-align:center">
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Win Rate</div>
+        <div style="font-size:20px;font-weight:600;color:${wrColor}">${wr}%</div>
+        <div style="font-size:11px;color:var(--text-muted)">${totalW}W / ${totalL}L</div>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border);text-align:center">
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Net P&L</div>
+        <div style="font-size:20px;font-weight:600;color:${pnlColor}">${pnlStr}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${total} trades</div>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border);text-align:center">
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Profit Factor</div>
+        <div style="font-size:20px;font-weight:600;color:${pfColor}">${pf}</div>
+        <div style="font-size:11px;color:var(--text-muted)">Max DD: -$${maxDd.toLocaleString()}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div style="background:var(--bg);border-radius:8px;padding:8px 12px;border:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;color:var(--text-muted)">Best Streak</span>
+        <span style="font-size:13px;font-weight:600;color:var(--green)">${bestStreak}W</span>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:8px 12px;border:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;color:var(--text-muted)">Worst Streak</span>
+        <span style="font-size:13px;font-weight:600;color:var(--red)">${worstStreak}L</span>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Monthly Breakdown</div>
+    <div style="display:flex;flex-direction:column;gap:5px">${monthRows}</div>`;
+}
+
 function applyBacktestUI(sess) {
   const btNY   = document.getElementById('bt-ny');
   const btAsia = document.getElementById('bt-asia');
@@ -426,7 +523,61 @@ async function adminRegenerateSignal() {
 // ── Calendar ──────────────────────────────────────────────────────────────
 const STORAGE_KEY_NY   = 'bankroll_algo_results_ny';
 const STORAGE_KEY_ASIA = 'bankroll_algo_results_asia';
-const TODAY_DAY = new Date().getDate();
+const _NOW        = new Date();
+const TODAY_DAY   = _NOW.getDate();
+const TODAY_MONTH = _NOW.getMonth();
+const TODAY_YEAR  = _NOW.getFullYear();
+let calViewYear   = TODAY_YEAR;
+let calViewMonth  = TODAY_MONTH;
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// Month-keyed local storage so each month is saved separately
+function monthKey(sess, y, m) {
+  return `ba_res_${sess}_${y}_${String(m+1).padStart(2,'0')}`;
+}
+function loadMonthData(sess, y, m) {
+  try {
+    const raw = localStorage.getItem(monthKey(sess, y, m));
+    if (raw) return JSON.parse(raw);
+    // Migrate old single-key data into current month slot on first load
+    if (y === TODAY_YEAR && m === TODAY_MONTH) {
+      const old = localStorage.getItem(sess === 'asia' ? STORAGE_KEY_ASIA : STORAGE_KEY_NY);
+      if (old) { localStorage.setItem(monthKey(sess, y, m), old); return JSON.parse(old); }
+    }
+    return {};
+  } catch { return {}; }
+}
+function saveMonthData(sess, y, m, r) {
+  try {
+    localStorage.setItem(monthKey(sess, y, m), JSON.stringify(r));
+    // Keep old keys in sync for current month (backward compat)
+    if (y === TODAY_YEAR && m === TODAY_MONTH) {
+      localStorage.setItem(sess === 'asia' ? STORAGE_KEY_ASIA : STORAGE_KEY_NY, JSON.stringify(r));
+    }
+  } catch {}
+}
+
+// Calendar-view results (the month currently displayed)
+function getCalResults() {
+  const sess = currentSession === 'asia' ? 'asia' : 'ny';
+  return loadMonthData(sess, calViewYear, calViewMonth);
+}
+function setCalResults(r) {
+  const sess = currentSession === 'asia' ? 'asia' : 'ny';
+  saveMonthData(sess, calViewYear, calViewMonth, r);
+  // Sync in-memory + Redis only when editing the current month
+  if (calViewYear === TODAY_YEAR && calViewMonth === TODAY_MONTH) {
+    setResults(r);
+    saveResults(r);
+  }
+}
+
+function calNav(dir) {
+  calViewMonth += dir;
+  if (calViewMonth < 0)  { calViewMonth = 11; calViewYear--; }
+  if (calViewMonth > 11) { calViewMonth = 0;  calViewYear++; }
+  buildCalendar();
+}
 
 function getStorageKey() {
   return currentSession === 'asia' ? STORAGE_KEY_ASIA : STORAGE_KEY_NY;
@@ -437,9 +588,7 @@ function loadResults(key) {
   catch { return {}; }
 }
 function saveResults(r) {
-  // save locally first (instant)
   try { localStorage.setItem(getStorageKey(), JSON.stringify(r)); } catch {}
-  // then persist to Redis (syncs across devices)
   fetch('/api/save-results', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -523,37 +672,49 @@ function updateStats() {
 
 function buildCalendar() {
   const grid = document.getElementById('cal-grid');
+  const isCurrentMonth = (calViewYear === TODAY_YEAR && calViewMonth === TODAY_MONTH);
+
+  // Update header title + hint visibility
+  const titleEl = document.getElementById('cal-title');
+  const hintEl  = document.getElementById('cal-hint');
+  if (titleEl) titleEl.textContent = `${MONTH_NAMES[calViewMonth]} ${calViewYear}`;
+  if (hintEl)  hintEl.style.display = isCurrentMonth ? '' : 'none';
+
   grid.innerHTML = '';
   ['S','M','T','W','T','F','S'].forEach(d => {
     const el = document.createElement('div');
     el.className = 'cal-day-label'; el.textContent = d; grid.appendChild(el);
   });
-  for (let i = 0; i < 1; i++) {
+
+  const firstDay    = new Date(calViewYear, calViewMonth, 1).getDay();
+  const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+  const r = getCalResults();
+
+  for (let i = 0; i < firstDay; i++) {
     const el = document.createElement('div'); el.className = 'cal-day empty'; el.textContent = '·'; grid.appendChild(el);
   }
-  for (let d = 1; d <= 30; d++) {
+  for (let d = 1; d <= daysInMonth; d++) {
     const el = document.createElement('div');
     el.className = 'cal-day';
     el.textContent = d;
     el.onclick = () => cycleDay(d);
-    const r = getResults();
-    if (d === TODAY_DAY) el.classList.add('today');
-    else if (r[d] === 'win') el.classList.add('win');
+    if (isCurrentMonth && d === TODAY_DAY) el.classList.add('today');
+    else if (r[d] === 'win')  el.classList.add('win');
     else if (r[d] === 'loss') el.classList.add('loss');
-    else if (d > TODAY_DAY) el.classList.add('future');
+    else if (isCurrentMonth && d > TODAY_DAY) el.classList.add('future');
     grid.appendChild(el);
   }
 }
 
 function cycleDay(d) {
-  const r = getResults();
+  const r = getCalResults();
   if (!r[d]) r[d] = 'win';
   else if (r[d] === 'win') r[d] = 'loss';
   else delete r[d];
-  setResults(r);
-  saveResults(r);
+  setCalResults(r);
   buildCalendar();
   updateStats();
+  buildBacktestCard();
 }
 
 // ── Activity bars ─────────────────────────────────────────────────────────
@@ -646,6 +807,7 @@ applySessionUI(currentSession);
 applyBacktestUI(currentSession);
 buildCalendar();
 updateStats();
+buildBacktestCard();
 loadSignal();
 
 // Load real results from Redis (syncs phone + desktop)
