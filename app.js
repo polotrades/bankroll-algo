@@ -439,7 +439,6 @@ function renderMarketContext(signal) {
           <span style="font-size:11px;color:var(--text-muted)">${ev.time}</span>
           ${ev.actual != null ? `<span style="font-size:11px">A: <b>${ev.actual}</b> F: ${ev.forecast ?? '—'}</span>` : '<span style="font-size:11px;color:var(--text-muted)">Pending</span>'}
         </div>
-        ${ev.surprise ? `<div style="margin-top:3px;font-size:11px;color:${evBc}">${ev.surprise}</div>` : ''}
       </div>`;
     }
     newsHtml += '</div>';
@@ -448,16 +447,14 @@ function renderMarketContext(signal) {
     newsEl.innerHTML = '';
   }
 
-  // Bias badge + warning row
+  // Bias badge + warning row — hidden, strategy drives direction not news
   const badge   = document.getElementById('news-bias-badge');
   const biasRow = document.getElementById('ctx-bias-row');
   const biasTxt = document.getElementById('ctx-bias-text');
+  badge.style.display = 'none';
+  biasRow.style.display = 'none';
 
-  if (ctx.news_bias && ctx.news_bias !== 'none') {
-    badge.style.display = 'inline-block';
-    const isLong = signal.direction === 'LONG';
-    const conflicts = (ctx.news_bias === 'bullish' && !isLong) || (ctx.news_bias === 'bearish' && isLong);
-
+  if (false) {
     if (ctx.news_bias === 'bullish') {
       badge.textContent = '📈 Bullish news';
       badge.style.background = '#E1F5EE'; badge.style.color = '#0F6E56';
