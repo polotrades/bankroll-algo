@@ -177,7 +177,7 @@ export default async function handler(req, res) {
           for (const ev of relevant) {
             const evDate = new Date(ev.date);
             const timeStr = evDate.toLocaleTimeString('en-US', {
-              hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short'
+              hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles', timeZoneName: 'short'
             });
             const isBeforeOpen = evDate < marketOpenET;
 
