@@ -400,6 +400,24 @@ function renderMarketContext(signal) {
     const pc_c = pc > 1.2 ? '#A32D2D' : pc < 0.8 ? '#0F6E56' : null;
     wallsHtml += ctxRow('P/C Ratio', `${ctx.pc_ratio.value} (${ctx.pc_ratio.tag})`, pc_c);
   }
+  // TP path indicator based on wall distance
+  if (ctx.es_price && (ctx.call_wall?.es || ctx.put_wall?.es)) {
+    const esPrice = parseFloat(ctx.es_price);
+    const isLong  = signal.direction === 'LONG';
+    let label = '', bg = '', color = '';
+    if (isLong && ctx.call_wall?.es) {
+      const dist = parseFloat(ctx.call_wall.es) - esPrice;
+      if (dist > 9)      { label = '✅ Likely to hit your 9pt TP';     bg = '#E1F5EE'; color = '#0F6E56'; }
+      else if (dist > 0) { label = '⚠️ Wall close — TP might stall';   bg = '#FFF8E6'; color = '#854F0B'; }
+      else               { label = '🚫 Wall blocking your TP';          bg = '#FCEBEB'; color = '#A32D2D'; }
+    } else if (!isLong && ctx.put_wall?.es) {
+      const dist = esPrice - parseFloat(ctx.put_wall.es);
+      if (dist > 9)      { label = '✅ Likely to hit your 9pt TP';     bg = '#E1F5EE'; color = '#0F6E56'; }
+      else if (dist > 0) { label = '⚠️ Wall close — TP might stall';   bg = '#FFF8E6'; color = '#854F0B'; }
+      else               { label = '🚫 Wall blocking your TP';          bg = '#FCEBEB'; color = '#A32D2D'; }
+    }
+    if (label) wallsHtml += `<div style="margin-top:8px;padding:6px 8px;background:${bg};border-radius:6px;font-size:11px;color:${color};font-weight:500">${label}</div>`;
+  }
   wallsEl.innerHTML = wallsHtml || '<span style="font-size:11px;color:var(--text-muted)">No data</span>';
 
   // News events
