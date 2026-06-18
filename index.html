@@ -219,37 +219,6 @@
               </div>
             </div>
 
-            <!-- Market context panel -->
-            <div id="mkt-ctx-wrap" style="display:none;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border)">
-              <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0" onclick="toggleMktCtx()">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <i class="ti ti-radar" style="font-size:14px;color:var(--text-muted)" aria-hidden="true"></i>
-                  <span style="font-size:12px;color:var(--text-muted)">What's affecting this signal</span>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span id="news-bias-badge" style="display:none;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:500"></span>
-                  <i class="ti ti-chevron-down" id="mkt-ctx-chev" style="font-size:13px;color:var(--text-muted)" aria-hidden="true"></i>
-                </div>
-              </div>
-              <div id="mkt-ctx-body" style="display:none;padding-top:10px">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-                  <div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border)">
-                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Market</div>
-                    <div id="ctx-market-rows"></div>
-                  </div>
-                  <div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border)">
-                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">SPY walls</div>
-                    <div id="ctx-walls-rows"></div>
-                  </div>
-                </div>
-                <div id="ctx-news-rows"></div>
-                <div id="ctx-bias-row" style="display:none;margin-top:6px;padding:8px 10px;border-radius:8px;display:flex;align-items:center;gap:6px">
-                  <i class="ti ti-alert-triangle" style="font-size:13px" aria-hidden="true"></i>
-                  <span id="ctx-bias-text" style="font-size:12px;font-weight:500"></span>
-                </div>
-              </div>
-            </div>
-
             <!-- Admin panel -->
             <div id="admin-panel" style="display:none;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)">
               <div class="card-label" style="color:#534AB7">Admin Controls</div>
