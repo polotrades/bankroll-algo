@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
     let ctx = {
       es_price: null, prev_close: null, pm_high: null, pm_low: null,
-      overnight_change: null, vix: null, nikkei: null, hsi: null
+      overnight_change: null, vix: null
     };
 
     const YF_HEADERS = {
@@ -30,20 +30,16 @@ export default async function handler(req, res) {
     };
 
     try {
-      const [esRes, nikkeiRes, hsiRes, vixRes] = await Promise.all([
+      const [esRes, vixRes] = await Promise.all([
         fetch('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d', { headers: YF_HEADERS }),
-        fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EN225?interval=5m&range=1d', { headers: YF_HEADERS }),
-        fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EHSI?interval=5m&range=1d',  { headers: YF_HEADERS }),
-        fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d',  { headers: YF_HEADERS })
+        fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
       ]);
 
-      const [esData, nikkeiData, hsiData, vixData] = await Promise.all([
-        esRes.json(), nikkeiRes.json(), hsiRes.json(), vixRes.json()
+      const [esData, vixData] = await Promise.all([
+        esRes.json(), vixRes.json()
       ]);
 
-      const es     = esData?.chart?.result?.[0]?.meta;
-      const nikkei = nikkeiData?.chart?.result?.[0]?.meta;
-      const hsi    = hsiData?.chart?.result?.[0]?.meta;
+      const es = esData?.chart?.result?.[0]?.meta;
 
       if (es?.regularMarketPrice) {
         livePrice = es.regularMarketPrice;
@@ -53,16 +49,12 @@ export default async function handler(req, res) {
         const low       = (es.regularMarketDayLow  || livePrice).toFixed(2);
         const change    = (livePrice - (es.chartPreviousClose || livePrice)).toFixed(2);
         const changePct = ((change / (es.chartPreviousClose || livePrice)) * 100).toFixed(2);
-        const nikkeiStr = nikkei ? `Nikkei 225: ${nikkei.regularMarketPrice?.toFixed(2)} (${((nikkei.regularMarketPrice - nikkei.chartPreviousClose) / nikkei.chartPreviousClose * 100).toFixed(2)}%)` : '';
-        const hsiStr    = hsi    ? `Hang Seng: ${hsi.regularMarketPrice?.toFixed(2)} (${((hsi.regularMarketPrice - hsi.chartPreviousClose) / hsi.chartPreviousClose * 100).toFixed(2)}%)` : '';
 
         ctx.es_price         = price;
         ctx.prev_close       = prevClose;
         ctx.pm_high          = high;
         ctx.pm_low           = low;
         ctx.overnight_change = `${change > 0 ? '+' : ''}${change} (${changePct}%)`;
-        if (nikkei) ctx.nikkei = nikkeiStr;
-        if (hsi)    ctx.hsi    = hsiStr;
 
         // VIX
         const vixClose = vixData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
@@ -76,9 +68,7 @@ export default async function handler(req, res) {
 LIVE MARKET DATA:
 - ES Futures: ${price} (Prev Close: ${prevClose}, Change: ${change > 0 ? '+' : ''}${change})
 - Session High: ${high} / Low: ${low}
-${ctx.vix ? `- VIX: ${ctx.vix} (${ctx.vix_tag})` : ''}
-${nikkeiStr ? '- ' + nikkeiStr : ''}
-${hsiStr ? '- ' + hsiStr : ''}`;
+${ctx.vix ? `- VIX: ${ctx.vix} (${ctx.vix_tag})` : ''}`;
       }
     } catch (e) {
       livePrice = 7500;
