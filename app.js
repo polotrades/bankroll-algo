@@ -277,6 +277,17 @@ function populateSignal(signal) {
   confEl.textContent = signal.confidence;
   confEl.style.color = signal.confidence === 'High' ? '#534AB7' : signal.confidence === 'Medium' ? '#854F0B' : '#A32D2D';
 
+  // Low confidence banner — signal still shows, just flagged
+  const existingBanner = document.getElementById('no-trade-banner');
+  if (existingBanner) existingBanner.remove();
+  if (signal.confidence === 'Low') {
+    const banner = document.createElement('div');
+    banner.id = 'no-trade-banner';
+    banner.style.cssText = 'margin:12px 0 4px;padding:10px 14px;background:#FCEBEB;border:0.5px solid #F09595;border-radius:8px;display:flex;align-items:center;gap:8px';
+    banner.innerHTML = `<span style="font-size:15px">🚫</span><div><div style="font-size:13px;font-weight:500;color:#A32D2D">No trade today</div><div style="font-size:11px;color:#791F1F;margin-top:1px">Low confidence — signal shown for reference only</div></div>`;
+    confEl.closest('.card') ? confEl.parentElement.insertBefore(banner, confEl.parentElement.nextSibling) : confEl.after(banner);
+  }
+
   // TP / SL / RR (unlocked values — shown only when unlocked)
   document.getElementById('tp-val').textContent = signal.take_profit || '—';
   document.getElementById('sl-val').textContent = signal.stop_loss || '—';
