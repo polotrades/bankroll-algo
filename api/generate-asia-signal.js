@@ -18,13 +18,10 @@ export default async function handler(req, res) {
   try {
     let livePrice = null;
     let marketContext = '';
-    let newsLines = [];
 
     let ctx = {
       es_price: null, prev_close: null, pm_high: null, pm_low: null,
-      overnight_change: null, vix: null, nikkei: null, hsi: null,
-      call_wall: null, put_wall: null, pc_ratio: null,
-      news_events: [], news_bias: 'none'
+      overnight_change: null, vix: null, nikkei: null, hsi: null
     };
 
     const YF_HEADERS = {
@@ -88,107 +85,7 @@ ${hsiStr ? '- ' + hsiStr : ''}`;
       marketContext = '\nUse realistic ES price levels (7,400-7,700 range) for Asia session.';
     }
 
-    // ── SPY Options via CBOE ──────────────────────────────────────────────
-    try {
-      const cboeRes = await fetch('https://cdn.cboe.com/api/global/delayed_quotes/options/SPY.json', {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'application/json' }
-      });
-      if (cboeRes.ok) {
-        const cboeData = await cboeRes.json();
-        const spot = cboeData?.data?.current_price || 0;
-        const options = cboeData?.data?.options || [];
-        if (options.length && spot > 0) {
-          const lo = spot * 0.95, hi = spot * 1.05;
-          const getType   = (o) => o.option?.charAt(9) || '';
-          const getStrike = (o) => parseInt(o.option?.slice(10) || '0') / 1000;
-          const calls = options.filter(o => getType(o) === 'C' && getStrike(o) >= lo && getStrike(o) <= hi);
-          const puts  = options.filter(o => getType(o) === 'P' && getStrike(o) >= lo && getStrike(o) <= hi);
-          const byOI = (arr) => arr.reduce((a, b) => (b.open_interest || 0) > (a.open_interest || 0) ? b : a, arr[0]);
-          const callWall = calls.length ? byOI(calls) : null;
-          const putWall  = puts.length  ? byOI(puts)  : null;
-          const totalCallOI = calls.reduce((s, o) => s + (o.open_interest || 0), 0);
-          const totalPutOI  = puts.reduce((s, o)  => s + (o.open_interest || 0), 0);
-          const pcRatio = totalCallOI > 0 ? (totalPutOI / totalCallOI).toFixed(2) : null;
-          const pcTag   = pcRatio ? (parseFloat(pcRatio) > 1.2 ? 'bearish lean' : parseFloat(pcRatio) < 0.8 ? 'bullish lean' : 'neutral') : '';
-          const spyToES = (p) => (p * 10).toFixed(0);
-          const cStrike = callWall ? getStrike(callWall) : null;
-          const pStrike = putWall  ? getStrike(putWall)  : null;
-          ctx.call_wall = cStrike ? { spy: cStrike.toFixed(0), es: spyToES(cStrike), oi: (callWall.open_interest||0).toLocaleString() } : null;
-          ctx.put_wall  = pStrike ? { spy: pStrike.toFixed(0),  es: spyToES(pStrike),  oi: (putWall.open_interest||0).toLocaleString()  } : null;
-          ctx.pc_ratio  = pcRatio ? { value: pcRatio, tag: pcTag } : null;
-          if (ctx.call_wall || ctx.put_wall) {
-            marketContext += `\nSPY OPTIONS (CBOE):`;
-            if (ctx.call_wall) marketContext += `\n- Call Wall: SPY ${ctx.call_wall.spy} → ES ~${ctx.call_wall.es} (resistance)`;
-            if (ctx.put_wall)  marketContext += `\n- Put Wall:  SPY ${ctx.put_wall.spy} → ES ~${ctx.put_wall.es} (support)`;
-            if (pcRatio)       marketContext += `\n- P/C Ratio: ${pcRatio} (${pcTag})`;
-          }
-        }
-      }
-    } catch (e) { /* continue without options */ }
-
-    // ── Economic Calendar (tomorrow's USD events for Asia session) ────────
-    try {
-      const calRes = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
-        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
-      });
-      if (calRes.ok) {
-        const events = await calRes.json();
-        // Asia session: show TOMORROW's USD high/medium events (next US trading day)
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowET = tomorrow.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-
-        const relevant = Array.isArray(events) ? events.filter(e => {
-          if (e.country !== 'USD') return false;
-          if (e.impact !== 'High' && e.impact !== 'Medium') return false;
-          const evDateET = new Date(e.date).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-          return evDateET === tomorrowET;
-        }) : [];
-
-        if (relevant.length > 0) {
-          newsLines.push('');
-          newsLines.push('UPCOMING USD EVENTS TOMORROW (risk awareness for Asia traders):');
-          let bullish = 0, bearish = 0;
-
-          for (const ev of relevant) {
-            const evDate = new Date(ev.date);
-            const timeStr = evDate.toLocaleTimeString('en-US', {
-              hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short'
-            });
-            const fcst = parseFloat(ev.forecast);
-            const prev = parseFloat(ev.previous);
-            let bias = 'neutral', surpriseLabel = null;
-            if (!isNaN(fcst) && !isNaN(prev) && fcst !== prev) {
-              const name = ev.title.toLowerCase();
-              const negative = name.includes('unemployment') || name.includes('claims') || name.includes('deficit');
-              const higher = fcst > prev;
-              bias = (higher !== negative) ? 'bullish' : 'bearish';
-              surpriseLabel = `Forecast ${ev.forecast} vs Prior ${ev.previous} — ${bias} lean`;
-              if (bias === 'bullish') bullish++; else bearish++;
-            }
-            ctx.news_events.push({
-              name: ev.title, time: timeStr, impact: ev.impact,
-              forecast: ev.forecast || null, actual: null,
-              surprise: surpriseLabel, bias, before_open: false
-            });
-            newsLines.push(`  [${ev.impact.toUpperCase()}] ${timeStr} — ${ev.title}${ev.forecast ? ` (F: ${ev.forecast}, P: ${ev.previous})` : ''}`);
-          }
-
-          newsLines.push('');
-          if (bullish > bearish)      { ctx.news_bias = 'bullish'; newsLines.push(`⚠️  TOMORROW'S NEWS LEANS BULLISH — favor LONG bias if technicals confirm.`); }
-          else if (bearish > bullish) { ctx.news_bias = 'bearish'; newsLines.push(`⚠️  TOMORROW'S NEWS LEANS BEARISH — favor SHORT bias if technicals confirm.`); }
-          else if (bullish > 0)       { ctx.news_bias = 'mixed';   newsLines.push(`⚠️  MIXED NEWS TOMORROW — lower confidence.`); }
-          else                        { ctx.news_bias = 'none'; }
-        } else {
-          ctx.news_bias = 'none';
-          newsLines.push('');
-          newsLines.push('USD EVENTS TOMORROW: None — clean trading day ahead.');
-        }
-      }
-    } catch (e) { /* continue without news */ }
-
-    // Append news context to market prompt
-    if (newsLines.length) marketContext += '\n' + newsLines.join('\n');
+    // SPY Options + Economic Calendar removed — strategy drives direction only
 
     // Fixed 9pt TP and 11pt SL from live price
     const price = livePrice || 7500;
