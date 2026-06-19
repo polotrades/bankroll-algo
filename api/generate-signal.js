@@ -174,8 +174,8 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 400,
         messages: [{
           role: 'user',
           content: `You are Bankroll Algo — a professional ES Futures signal engine. Today is ${today}. Generate a signal for the NYSE open (9:30 AM ET / 6:30 AM PT).
