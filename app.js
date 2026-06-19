@@ -402,7 +402,9 @@ async function adminRegenerateSignal() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ admin_key: adminPw })
     });
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) { throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`); }
     if (data.signal) {
       populateSignal(data.signal);
       txt.textContent = 'Signal Regenerated ✓';
