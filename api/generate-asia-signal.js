@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
     let ctx = {
       es_price: null, prev_close: null, pm_high: null, pm_low: null,
-      overnight_change: null, vix: null
+      overnight_change: null, vix: null, nikkei: null, hsi: null
     };
 
     const YF_HEADERS = {
@@ -30,16 +30,20 @@ export default async function handler(req, res) {
     };
 
     try {
-      const [esRes, vixRes] = await Promise.all([
+      const [esRes, nikkeiRes, hsiRes, vixRes] = await Promise.all([
         fetch('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d', { headers: YF_HEADERS }),
-        fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
+        fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EN225?interval=5m&range=1d', { headers: YF_HEADERS }),
+        fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EHSI?interval=5m&range=1d',  { headers: YF_HEADERS }),
+        fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d',  { headers: YF_HEADERS })
       ]);
 
-      const [esData, vixData] = await Promise.all([
-        esRes.json(), vixRes.json()
+      const [esData, nikkeiData, hsiData, vixData] = await Promise.all([
+        esRes.json(), nikkeiRes.json(), hsiRes.json(), vixRes.json()
       ]);
 
-      const es = esData?.chart?.result?.[0]?.meta;
+      const es     = esData?.chart?.result?.[0]?.meta;
+      const nikkei = nikkeiData?.chart?.result?.[0]?.meta;
+      const hsi    = hsiData?.chart?.result?.[0]?.meta;
 
       if (es?.regularMarketPrice) {
         livePrice = es.regularMarketPrice;
@@ -49,12 +53,16 @@ export default async function handler(req, res) {
         const low       = (es.regularMarketDayLow  || livePrice).toFixed(2);
         const change    = (livePrice - (es.chartPreviousClose || livePrice)).toFixed(2);
         const changePct = ((change / (es.chartPreviousClose || livePrice)) * 100).toFixed(2);
+        const nikkeiStr = nikkei ? `Nikkei 225: ${nikkei.regularMarketPrice?.toFixed(2)} (${((nikkei.regularMarketPrice - nikkei.chartPreviousClose) / nikkei.chartPreviousClose * 100).toFixed(2)}%)` : '';
+        const hsiStr    = hsi    ? `Hang Seng: ${hsi.regularMarketPrice?.toFixed(2)} (${((hsi.regularMarketPrice - hsi.chartPreviousClose) / hsi.chartPreviousClose * 100).toFixed(2)}%)` : '';
 
         ctx.es_price         = price;
         ctx.prev_close       = prevClose;
         ctx.pm_high          = high;
         ctx.pm_low           = low;
         ctx.overnight_change = `${change > 0 ? '+' : ''}${change} (${changePct}%)`;
+        if (nikkei) ctx.nikkei = nikkeiStr;
+        if (hsi)    ctx.hsi    = hsiStr;
 
         // VIX
         const vixClose = vixData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
@@ -68,100 +76,16 @@ export default async function handler(req, res) {
 LIVE MARKET DATA:
 - ES Futures: ${price} (Prev Close: ${prevClose}, Change: ${change > 0 ? '+' : ''}${change})
 - Session High: ${high} / Low: ${low}
-${ctx.vix ? `- VIX: ${ctx.vix} (${ctx.vix_tag})` : ''}`;
+${ctx.vix ? `- VIX: ${ctx.vix} (${ctx.vix_tag})` : ''}
+${nikkeiStr ? '- ' + nikkeiStr : ''}
+${hsiStr ? '- ' + hsiStr : ''}`;
       }
     } catch (e) {
       livePrice = 7500;
       marketContext = '\nUse realistic ES price levels (7,400-7,700 range) for Asia session.';
     }
 
-    // ── Calculate 9 confluences ───────────────────────────────────────────
-    let confluenceLines = [];
-    try {
-      const esData2    = await (await fetch('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS })).json();
-      const result     = esData2?.chart?.result?.[0];
-      const timestamps = result?.timestamp || [];
-      const q          = result?.indicators?.quote?.[0] || {};
-      const opens = q.open || [], highs = q.high || [], lows = q.low || [], closes = q.close || [], vols = q.volume || [];
-
-      const bars = [];
-      for (let i = 0; i < timestamps.length; i++) {
-        if (opens[i] != null) bars.push({ o: opens[i], h: highs[i], l: lows[i], c: closes[i], v: vols[i] || 0 });
-      }
-
-      if (bars.length >= 4) {
-        const oHigh  = Math.max(...bars.map(b => b.h));
-        const oLow   = Math.min(...bars.map(b => b.l));
-        const oRange = oHigh - oLow;
-        const mid    = (oHigh + oLow) / 2;
-        const price2 = livePrice || closes.filter(c => c != null).pop() || mid;
-        const prevCl = parseFloat(ctx.prev_close) || price2;
-
-        const half = Math.floor(bars.length / 2);
-        const fH = Math.max(...bars.slice(0, half).map(b => b.h));
-        const fL = Math.min(...bars.slice(0, half).map(b => b.l));
-        const sH = Math.max(...bars.slice(half).map(b => b.h));
-        const sL = Math.min(...bars.slice(half).map(b => b.l));
-        const oTrend = sH > fH && sL > fL ? 'Bullish — HH/HL structure'
-                     : sH < fH && sL < fL ? 'Bearish — LL/LH structure'
-                     : 'No directional trend — ranging';
-
-        const pdDiff = (price2 - prevCl).toFixed(2);
-        const pdPos  = parseFloat(pdDiff) >= 0 ? `+${pdDiff} pts above PD close — bullish carryover` : `${pdDiff} pts below PD close — bearish carryover`;
-        const vsMP   = price2 >= mid ? `ES above midpoint (${mid.toFixed(2)}) — bullish structure` : `ES below midpoint (${mid.toFixed(2)}) — bearish structure`;
-
-        const fvgs = [];
-        for (let i = 1; i < bars.length - 1; i++) {
-          const p = bars[i-1], n = bars[i+1];
-          if (p.l > n.h) fvgs.push({ upper: p.l, lower: n.h, size: p.l - n.h });
-          if (p.h < n.l) fvgs.push({ upper: n.l, lower: p.h, size: n.l - p.h });
-        }
-        let imbalance = 'No significant imbalance detected';
-        if (fvgs.length > 0) {
-          const avg = (fvgs.reduce((s, f) => s + f.size, 0) / fvgs.length).toFixed(2);
-          const lat = fvgs[fvgs.length - 1];
-          imbalance = `Avg imbalance: ${avg} pts · Upper fill: ${lat.upper.toFixed(2)} · Lower fill: ${lat.lower.toFixed(2)}`;
-        }
-
-        const rangeTag  = oRange > 20 ? 'wide range, high conviction' : oRange > 10 ? 'moderate range' : 'tight range, low conviction';
-        const oRangeStr = `${oRange.toFixed(2)} pts — ${rangeTag}`;
-        const avgVol    = bars.reduce((s, b) => s + b.v, 0) / bars.length;
-        const volTag    = avgVol > 5000 ? 'above-average volume, conviction present' : avgVol > 2000 ? 'moderate volume' : 'below-average volume, conviction unclear';
-        const volStr    = `Avg ${avgVol >= 1000 ? (avgVol/1000).toFixed(1)+'K' : avgVol.toFixed(0)}/bar — ${volTag}`;
-        const atrStr    = `~${(oRange * 1.25).toFixed(2)} pts projected · range × 1.25`;
-
-        const recent = bars.slice(-6);
-        const rMid   = (Math.max(...recent.map(b => b.h)) + Math.min(...recent.map(b => b.l))) / 2;
-        const lastC  = recent[recent.length-1].c;
-        let microTrend = lastC > rMid && oTrend.includes('Bullish') ? 'Aligned bullish — micro and macro confirm'
-                       : lastC < rMid && oTrend.includes('Bearish') ? 'Aligned bearish — micro and macro confirm'
-                       : 'Diverging from macro trend — reduced conviction';
-
-        let bull = 0, bear = 0;
-        if (oTrend.includes('Bullish')) bull++; else if (oTrend.includes('Bearish')) bear++;
-        if (parseFloat(pdDiff) > 0) bull++; else bear++;
-        if (price2 >= mid) bull++; else bear++;
-        if (microTrend.includes('bullish')) bull++; else if (microTrend.includes('bearish')) bear++;
-        const tot = bull + bear;
-        const composite = bull > bear + 1 ? `Bullish bias (${bull}/${tot} signals align)` : bear > bull + 1 ? `Bearish bias (${bear}/${tot} signals align)` : 'Conflicting signals — reduced conviction';
-
-        confluenceLines = [
-          `CONFLUENCE ANALYSIS:`,
-          `1. Overnight Trend:         ${oTrend}`,
-          `2. Prev Day Close Position: ${pdPos}`,
-          `3. Price vs O/N Midpoint:   ${vsMP}`,
-          `4. Imbalance Zone:          ${imbalance}`,
-          `5. Overnight Range:         ${oRangeStr}`,
-          `6. Volume Spike:            ${volStr}`,
-          `7. Est. Session ATR:        ${atrStr}`,
-          `8. Micro-Trend Alignment:   ${microTrend}`,
-          `9. Session Bias Composite:  ${composite}`,
-        ];
-        ctx.confluences = { oTrend, pdPos, vsMP, imbalance, oRangeStr, volStr, atrStr, microTrend, composite };
-      }
-    } catch (e) { /* continue without confluences */ }
-
-    const fullContext = [marketContext, confluenceLines.length ? '\n' + confluenceLines.join('\n') : ''].join('');
+    // SPY Options + Economic Calendar removed — strategy drives direction only
 
     // Fixed 9pt TP and 11pt SL from live price
     const price = livePrice || 7500;
@@ -178,19 +102,23 @@ ${ctx.vix ? `- VIX: ${ctx.vix} (${ctx.vix_tag})` : ''}`;
         max_tokens: 1000,
         messages: [{
           role: 'user',
-          content: `You are Bankroll Algo — Asia Session. Today in Asia is ${today}. Generate a signal for ES Futures at the Asian session open (Tokyo 9 AM JST).
-${fullContext}
+          content: `You are Bankroll Algo — Asia Session. Today in Asia is ${today}. Generate a signal for ES Futures at the Asian session market open (Tokyo 9 AM JST).
+${marketContext}
 
-STRATEGY RULES — base direction ONLY on the confluences above:
-- If Session Bias Composite is Bullish → direction LONG
-- If Session Bias Composite is Bearish → direction SHORT
-- If Conflicting → Low confidence, pick best direction from individual signals
-- Confidence = High if 3+ align, Medium if 2 align, Low if conflicting
-- TP: exactly 9pts from entry · SL: exactly 11pts from entry
+FIXED RULES (do not change):
+- Take Profit: exactly 9 points from entry in the signal direction
+- Stop Loss: exactly 11 points from entry against the signal direction
+- RR Ratio: 1:1 (approx)
+- Target: +$450 (9pts × $50)
+- Risk: -$550 (11pts × $50)
 
 Current ES price: ${price.toFixed(2)}
 If LONG: TP = ${(price + 9).toFixed(2)}, SL = ${(price - 11).toFixed(2)}
 If SHORT: TP = ${(price - 9).toFixed(2)}, SL = ${(price + 11).toFixed(2)}
+
+Also provide a 5-point entry range around the current price (e.g. "${(price - 2).toFixed(0)} – ${(price + 3).toFixed(0)}").
+
+Use Asian market conditions, overnight ES price action, and Nikkei/HSI data to determine direction.
 
 Respond ONLY with valid JSON. No markdown.
 
@@ -200,15 +128,15 @@ Respond ONLY with valid JSON. No markdown.
   "confidence": "High, Medium, or Low",
   "session": "Asia",
   "entry": "Asia Market Open",
-  "entry_range": "5-point zone e.g. ${(price - 2).toFixed(0)} – ${(price + 3).toFixed(0)}",
+  "entry_range": "5-point zone e.g. 7,498 – 7,503",
   "take_profit": "exact ES price (9pts from entry)",
   "stop_loss": "exact ES price (11pts from entry)",
   "rr_ratio": "1:1",
   "rr_target": "+$450",
   "rr_risk": "-$550",
-  "confluence_1": "from confluence analysis above",
-  "confluence_2": "from confluence analysis above",
-  "confluence_3": "from confluence analysis above",
+  "confluence_1": "specific Asia session technical confluence",
+  "confluence_2": "specific Asia session technical confluence",
+  "confluence_3": "specific Asia session technical confluence",
   "confluence_public": "one visible free confluence"
 }`
         }]
