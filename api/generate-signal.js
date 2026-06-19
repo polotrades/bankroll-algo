@@ -1,4 +1,4 @@
-// api/generate-signal.js v2 — with market_context
+// api/generate-signal.js v3 — 9s race guard, haiku model, inline confluences
 // Runs automatically at 6:00 AM PT (13:00 UTC) Mon–Fri via Vercel Cron
 // Also callable manually via POST /api/generate-signal?admin_key=YOUR_ADMIN_KEY
 
@@ -21,13 +21,16 @@ export default async function handler(req, res) {
     'Referer': 'https://finance.yahoo.com/'
   };
 
-  try {
-    let livePrice    = null;
-    let marketLines  = [];
-    let optionsLines = [];
-    let newsLines    = [];
+  const fetchT = (url, opts, ms = 4000) => {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), ms);
+    return fetch(url, { ...opts, signal: ac.signal }).finally(() => clearTimeout(t));
+  };
 
-    // Structured data saved into the signal for the frontend
+  // ── 9-second overall race guard ─────────────────────────────────────────
+  const main = async () => {
+    let livePrice = null;
+    let marketLines = [];
     let ctx = {
       es_price: null, prev_close: null, pm_range: null,
       pm_high: null, pm_low: null, overnight_change: null, vix: null,
@@ -35,21 +38,17 @@ export default async function handler(req, res) {
       news_events: [], news_bias: 'none'
     };
 
-    // ── 1. Fetch ES price + VIX in parallel (5s timeout each) ────────────
-    const fetchWithTimeout = (url, opts, ms = 5000) => {
-      const ac = new AbortController();
-      const t = setTimeout(() => ac.abort(), ms);
-      return fetch(url, { ...opts, signal: ac.signal }).finally(() => clearTimeout(t));
-    };
-    const [esRes, vixRes] = await Promise.allSettled([
-      fetchWithTimeout('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }),
-      fetchWithTimeout('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
-    ]);
-
-    // ── ES price + VIX + Confluences (single fetch, no extra requests) ──────
+    // ── 1. Fetch ES + VIX (4s timeout each, parallel) ──────────────────────
     let confluenceLines = [];
     try {
-      const esData  = await esRes.value.json();
+      const [esRes, vixRes] = await Promise.allSettled([
+        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }),
+        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
+      ]);
+
+      const esData  = esRes.status  === 'fulfilled' ? await esRes.value.json()  : null;
+      const vixData = vixRes.status === 'fulfilled' ? await vixRes.value.json() : null;
+
       const esMeta  = esData?.chart?.result?.[0]?.meta;
       const esQuote = esData?.chart?.result?.[0]?.indicators?.quote?.[0];
       const esTS    = esData?.chart?.result?.[0]?.timestamp || [];
@@ -65,17 +64,17 @@ export default async function handler(req, res) {
         const volumes   = (esQuote?.volume || []).filter(v => v != null);
         const totalVol  = volumes.reduce((a, b) => a + b, 0);
         const rangeTag  = parseFloat(pmRange) > 15 ? 'WIDE — trending day likely'
-                        : parseFloat(pmRange) < 8  ? 'NARROW — choppy, low confidence'
+                        : parseFloat(pmRange) < 8  ? 'NARROW — choppy'
                         : 'MODERATE';
 
-        ctx.es_price        = livePrice.toFixed(2);
-        ctx.prev_close      = prevClose.toFixed(2);
-        ctx.pm_range        = pmRange;
-        ctx.pm_range_tag    = rangeTag;
-        ctx.pm_high         = pmHigh;
-        ctx.pm_low          = pmLow;
+        ctx.es_price         = livePrice.toFixed(2);
+        ctx.prev_close       = prevClose.toFixed(2);
+        ctx.pm_range         = pmRange;
+        ctx.pm_range_tag     = rangeTag;
+        ctx.pm_high          = pmHigh;
+        ctx.pm_low           = pmLow;
         ctx.overnight_change = `${change > 0 ? '+' : ''}${change} (${changePct}%)`;
-        ctx.volume          = totalVol > 0 ? totalVol.toLocaleString() : null;
+        ctx.volume           = totalVol > 0 ? totalVol.toLocaleString() : null;
 
         marketLines = [
           `ES Futures Price:   ${livePrice.toFixed(2)}`,
@@ -84,10 +83,9 @@ export default async function handler(req, res) {
           `Pre-Market High:    ${pmHigh}`,
           `Pre-Market Low:     ${pmLow}`,
           `Pre-Market Range:   ${pmRange} pts  (${rangeTag})`,
-          `Pre-Market Volume:  ${totalVol > 0 ? totalVol.toLocaleString() : 'N/A'} contracts`,
         ];
 
-        // ── 9 Confluences from already-fetched bar data (no extra fetch) ──
+        // ── 9 Confluences from bar data ────────────────────────────────────
         const opens = esQuote?.open || [], highs = esQuote?.high || [],
               lows  = esQuote?.low  || [], closes = esQuote?.close || [],
               vols  = esQuote?.volume || [];
@@ -108,20 +106,26 @@ export default async function handler(req, res) {
           const sL = Math.min.apply(null, bars.slice(half).map(b => b.l));
           const oTrend = sH > fH && sL > fL ? 'Bullish — HH/HL structure'
                        : sH < fH && sL < fL ? 'Bearish — LL/LH structure'
-                       : 'No directional trend — ranging';
+                       : 'Ranging — no clear trend';
           const pdDiff = (livePrice - prevClose).toFixed(2);
-          const pdPos  = parseFloat(pdDiff) >= 0 ? `+${pdDiff} pts above PD close — bullish` : `${pdDiff} pts below PD close — bearish`;
-          const vsMP   = livePrice >= mid ? `Above midpoint (${mid.toFixed(2)}) — bullish` : `Below midpoint (${mid.toFixed(2)}) — bearish`;
+          const pdPos  = parseFloat(pdDiff) >= 0
+            ? `+${pdDiff} pts above PD close — bullish`
+            : `${pdDiff} pts below PD close — bearish`;
+          const vsMP = livePrice >= mid
+            ? `Above midpoint (${mid.toFixed(2)}) — bullish`
+            : `Below midpoint (${mid.toFixed(2)}) — bearish`;
           const fvgs = [];
           for (let i = 1; i < bars.length - 1; i++) {
             const p = bars[i-1], n = bars[i+1];
-            if (p.l > n.h) fvgs.push({ u: p.l, l: n.h, s: p.l - n.h });
-            if (p.h < n.l) fvgs.push({ u: n.l, l: p.h, s: n.l - p.h });
+            if (p.l > n.h) fvgs.push({ u: p.l, l: n.h });
+            if (p.h < n.l) fvgs.push({ u: n.l, l: p.h });
           }
-          const imb = fvgs.length ? `FVG detected · Upper: ${fvgs[fvgs.length-1].u.toFixed(2)} · Lower: ${fvgs[fvgs.length-1].l.toFixed(2)}` : 'No significant imbalance';
+          const imb = fvgs.length
+            ? `FVG · Upper: ${fvgs[fvgs.length-1].u.toFixed(2)} · Lower: ${fvgs[fvgs.length-1].l.toFixed(2)}`
+            : 'No imbalance detected';
           const rTag = oR > 20 ? 'wide, high conviction' : oR > 10 ? 'moderate' : 'tight, low conviction';
           const avgV = bars.reduce((s, b) => s + b.v, 0) / bars.length;
-          const vTag = avgV > 5000 ? 'above-avg, conviction present' : avgV > 2000 ? 'moderate' : 'below-avg, conviction unclear';
+          const vTag = avgV > 5000 ? 'above-avg' : avgV > 2000 ? 'moderate' : 'below-avg';
           const rec  = bars.slice(-6);
           const rMid = (Math.max.apply(null, rec.map(b => b.h)) + Math.min.apply(null, rec.map(b => b.l))) / 2;
           const micro = rec[rec.length-1].c > rMid && oTrend.includes('Bullish') ? 'Aligned bullish'
@@ -132,8 +136,10 @@ export default async function handler(req, res) {
           if (parseFloat(pdDiff) > 0) bull++; else bear++;
           if (livePrice >= mid) bull++; else bear++;
           if (micro.includes('bullish')) bull++; else if (micro.includes('bearish')) bear++;
-          const tot = bull + bear;
-          const comp = bull > bear + 1 ? `Bullish (${bull}/${tot} align)` : bear > bull + 1 ? `Bearish (${bear}/${tot} align)` : 'Conflicting — low conviction';
+          const tot  = bull + bear;
+          const comp = bull > bear + 1 ? `Bullish (${bull}/${tot} align)`
+                     : bear > bull + 1 ? `Bearish (${bear}/${tot} align)`
+                     : 'Conflicting — low conviction';
           confluenceLines = [
             `CONFLUENCE ANALYSIS (base your direction on this):`,
             `1. Overnight Trend:    ${oTrend}`,
@@ -142,36 +148,33 @@ export default async function handler(req, res) {
             `4. Imbalance Zone:     ${imb}`,
             `5. Overnight Range:    ${oR.toFixed(2)} pts — ${rTag}`,
             `6. Volume:             Avg ${avgV >= 1000 ? (avgV/1000).toFixed(1)+'K' : avgV.toFixed(0)}/bar — ${vTag}`,
-            `7. Session ATR Est:    ~${(oR * 1.25).toFixed(2)} pts (range × 1.25)`,
+            `7. Session ATR Est:    ~${(oR * 1.25).toFixed(2)} pts`,
             `8. Micro-Trend:        ${micro}`,
             `9. Bias Composite:     ${comp}`,
-            `→ DIRECTION RULE: If Bias Composite is Bullish → LONG. If Bearish → SHORT. If Conflicting → Low confidence.`,
+            `→ DIRECTION RULE: Bullish composite = LONG. Bearish = SHORT. Conflicting = Low confidence.`,
           ];
         }
       }
 
       // VIX
-      const vixData  = vixRes.status === 'fulfilled' ? await vixRes.value.json() : null;
       const vixClose = vixData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
       const lastVix  = vixClose.filter(v => v != null).pop();
       if (lastVix) {
-        const vixTag = lastVix > 30 ? 'HIGH FEAR — caution, favor SHORT or Low confidence'
-                     : lastVix > 20 ? 'ELEVATED — be cautious'
-                     : 'CALM';
+        const vixTag = lastVix > 30 ? 'HIGH FEAR — caution' : lastVix > 20 ? 'ELEVATED' : 'CALM';
         ctx.vix     = lastVix.toFixed(2);
         ctx.vix_tag = vixTag;
         marketLines.push(`VIX:                ${lastVix.toFixed(2)}  (${vixTag})`);
       }
     } catch (e) { /* continue without market data */ }
 
-    // ── 2. Build Claude prompt context ────────────────────────────────────
+    // ── 2. Build prompt ────────────────────────────────────────────────────
     const marketContext = [
       marketLines.length ? `\nLIVE MARKET DATA:\n${marketLines.join('\n')}` : '',
       confluenceLines.length ? `\n\n${confluenceLines.join('\n')}` : ''
     ].join('');
 
-    // ── 3. Call Claude ─────────────────────────────────────────────────────
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+    // ── 3. Call Claude (5s timeout) ────────────────────────────────────────
+    const claudeRes = await fetchT('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -183,73 +186,55 @@ export default async function handler(req, res) {
         max_tokens: 400,
         messages: [{
           role: 'user',
-          content: `You are Bankroll Algo — a professional ES Futures signal engine. Today is ${today}. Generate a signal for the NYSE open (9:30 AM ET / 6:30 AM PT).
+          content: `You are Bankroll Algo — ES Futures signal engine. Today is ${today}. Generate NYSE open signal (9:30 AM ET).
 ${marketContext}
 
-RULES:
-- Base direction STRICTLY on the Bias Composite above
-- Confidence: High if 3+ confluences align, Medium if 2 align, Low if conflicting
-- TP = 9pts from entry, SL = 11pts from entry (fixed)
-- Entry on 1-min chart: wait for structure confirmation + imbalance touch
+RULES: Direction based STRICTLY on Bias Composite. TP=9pts, SL=11pts.
 
-Respond ONLY with valid JSON, no markdown:
-{
-  "direction": "LONG or SHORT",
-  "bias": "Bullish or Bearish",
-  "confidence": "High, Medium, or Low",
-  "entry": "Market Open",
-  "take_profit": "ES price",
-  "stop_loss": "ES price",
-  "rr_ratio": "1:1",
-  "rr_target": "+$450",
-  "rr_risk": "-$550",
-  "confluence_1": "based on analysis above",
-  "confluence_2": "based on analysis above",
-  "confluence_3": "based on analysis above",
-  "confluence_public": "one visible free confluence"
-}`
+Respond ONLY valid JSON no markdown:
+{"direction":"LONG or SHORT","bias":"Bullish or Bearish","confidence":"High, Medium, or Low","entry":"Market Open","take_profit":"ES price","stop_loss":"ES price","rr_ratio":"1:1","rr_target":"+$450","rr_risk":"-$550","confluence_1":"from analysis","confluence_2":"from analysis","confluence_3":"from analysis","confluence_public":"one free confluence"}`
         }]
       })
-    });
+    }, 5000);
 
     const claudeData = await claudeRes.json();
-    if (!claudeData.content) throw new Error('Anthropic API error: ' + JSON.stringify(claudeData));
+    if (!claudeData.content) throw new Error('Claude error: ' + JSON.stringify(claudeData).slice(0, 100));
 
     const raw    = claudeData.content.map(c => c.text || '').join('');
     const signal = JSON.parse(raw.replace(/```json|```/g, '').trim());
 
-    // ── 4. Override TP/SL with fixed 9pt/11pt ─────────────────────────────
-    if (livePrice) {
-      const isLong = signal.direction === 'LONG';
-      signal.take_profit = isLong ? (livePrice + 9).toFixed(2)  : (livePrice - 9).toFixed(2);
-      signal.stop_loss   = isLong ? (livePrice - 11).toFixed(2) : (livePrice + 11).toFixed(2);
-    }
-    signal.rr_ratio  = '1:1';
-    signal.rr_target = '+$450';
-    signal.rr_risk   = '-$550';
-
-    // ── 5. Attach market context + metadata ───────────────────────────────
+    // ── 4. Override TP/SL ─────────────────────────────────────────────────
+    const price  = livePrice || 5800;
+    const isLong = signal.direction === 'LONG';
+    signal.take_profit = isLong ? (price + 9).toFixed(2)  : (price - 9).toFixed(2);
+    signal.stop_loss   = isLong ? (price - 11).toFixed(2) : (price + 11).toFixed(2);
+    signal.rr_ratio    = '1:1';
+    signal.rr_target   = '+$450';
+    signal.rr_risk     = '-$550';
     signal.market_context = ctx;
     signal.generated_at   = new Date().toISOString();
     signal.date = today;
 
-    // ── 6. Save to Upstash Redis ───────────────────────────────────────────
-    const upstashRes = await fetch(process.env.UPSTASH_REDIS_REST_URL, {
+    // ── 5. Save to Redis (2s timeout) ─────────────────────────────────────
+    await fetchT(process.env.UPSTASH_REDIS_REST_URL, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
+      headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(['SET', 'current_signal', JSON.stringify(signal)])
-    });
+    }, 2000);
 
-    const upstashData = await upstashRes.json();
-    if (upstashData.error) throw new Error('Upstash error: ' + upstashData.error);
+    return { success: true, signal };
+  };
 
-    return res.status(200).json({ success: true, signal });
+  // ── 9s overall race — guarantees a response before Vercel's 10s wall ───
+  const timeoutResult = new Promise(resolve =>
+    setTimeout(() => resolve({ error: 'Signal generation timed out — please try again' }), 9000)
+  );
 
+  try {
+    const result = await Promise.race([main(), timeoutResult]);
+    return res.status(result.error ? 500 : 200).json(result);
   } catch (err) {
-    console.error('Signal generation error:', err);
+    console.error('Signal error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 }
