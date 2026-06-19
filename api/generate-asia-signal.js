@@ -29,10 +29,9 @@ export default async function handler(req, res) {
       'Accept': 'application/json', 'Referer': 'https://finance.yahoo.com/'
     };
 
-    let esDataShared = null;
     try {
       const [esRes, vixRes] = await Promise.all([
-        fetch('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }),
+        fetch('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d', { headers: YF_HEADERS }),
         fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
       ]);
 
@@ -40,7 +39,6 @@ export default async function handler(req, res) {
         esRes.json(), vixRes.json()
       ]);
 
-      esDataShared = esData;
       const es = esData?.chart?.result?.[0]?.meta;
 
       if (es?.regularMarketPrice) {
@@ -77,10 +75,11 @@ ${ctx.vix ? `- VIX: ${ctx.vix} (${ctx.vix_tag})` : ''}`;
       marketContext = '\nUse realistic ES price levels (7,400-7,700 range) for Asia session.';
     }
 
-    // ── Calculate 9 confluences (reuses esDataShared — no extra fetch) ────
+    // ── Calculate 9 confluences ───────────────────────────────────────────
     let confluenceLines = [];
     try {
-      const result     = esDataShared?.chart?.result?.[0];
+      const esData2    = await (await fetch('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS })).json();
+      const result     = esData2?.chart?.result?.[0];
       const timestamps = result?.timestamp || [];
       const q          = result?.indicators?.quote?.[0] || {};
       const opens = q.open || [], highs = q.high || [], lows = q.low || [], closes = q.close || [], vols = q.volume || [];
