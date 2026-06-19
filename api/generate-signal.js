@@ -41,11 +41,13 @@ export default async function handler(req, res) {
       fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
     ]);
 
-    // ── ES price + VIX ────────────────────────────────────────────────────
+    // ── ES price + VIX + Confluences (single fetch, no extra requests) ──────
+    let confluenceLines = [];
     try {
       const esData  = await esRes.value.json();
       const esMeta  = esData?.chart?.result?.[0]?.meta;
       const esQuote = esData?.chart?.result?.[0]?.indicators?.quote?.[0];
+      const esTS    = esData?.chart?.result?.[0]?.timestamp || [];
 
       if (esMeta?.regularMarketPrice) {
         livePrice = esMeta.regularMarketPrice;
@@ -79,11 +81,72 @@ export default async function handler(req, res) {
           `Pre-Market Range:   ${pmRange} pts  (${rangeTag})`,
           `Pre-Market Volume:  ${totalVol > 0 ? totalVol.toLocaleString() : 'N/A'} contracts`,
         ];
+
+        // ── 9 Confluences from already-fetched bar data (no extra fetch) ──
+        const opens = esQuote?.open || [], highs = esQuote?.high || [],
+              lows  = esQuote?.low  || [], closes = esQuote?.close || [],
+              vols  = esQuote?.volume || [];
+        const mktOpen = new Date(); mktOpen.setUTCHours(13, 30, 0, 0);
+        const bars = [];
+        for (let i = 0; i < esTS.length; i++) {
+          if (esTS[i] * 1000 < mktOpen.getTime() && opens[i] != null)
+            bars.push({ h: highs[i], l: lows[i], c: closes[i], v: vols[i] || 0 });
+        }
+        if (bars.length >= 4) {
+          const oH = Math.max.apply(null, bars.map(b => b.h));
+          const oL = Math.min.apply(null, bars.map(b => b.l));
+          const oR = oH - oL, mid = (oH + oL) / 2;
+          const half = Math.floor(bars.length / 2);
+          const fH = Math.max.apply(null, bars.slice(0, half).map(b => b.h));
+          const fL = Math.min.apply(null, bars.slice(0, half).map(b => b.l));
+          const sH = Math.max.apply(null, bars.slice(half).map(b => b.h));
+          const sL = Math.min.apply(null, bars.slice(half).map(b => b.l));
+          const oTrend = sH > fH && sL > fL ? 'Bullish — HH/HL structure'
+                       : sH < fH && sL < fL ? 'Bearish — LL/LH structure'
+                       : 'No directional trend — ranging';
+          const pdDiff = (livePrice - prevClose).toFixed(2);
+          const pdPos  = parseFloat(pdDiff) >= 0 ? `+${pdDiff} pts above PD close — bullish` : `${pdDiff} pts below PD close — bearish`;
+          const vsMP   = livePrice >= mid ? `Above midpoint (${mid.toFixed(2)}) — bullish` : `Below midpoint (${mid.toFixed(2)}) — bearish`;
+          const fvgs = [];
+          for (let i = 1; i < bars.length - 1; i++) {
+            const p = bars[i-1], n = bars[i+1];
+            if (p.l > n.h) fvgs.push({ u: p.l, l: n.h, s: p.l - n.h });
+            if (p.h < n.l) fvgs.push({ u: n.l, l: p.h, s: n.l - p.h });
+          }
+          const imb = fvgs.length ? `FVG detected · Upper: ${fvgs[fvgs.length-1].u.toFixed(2)} · Lower: ${fvgs[fvgs.length-1].l.toFixed(2)}` : 'No significant imbalance';
+          const rTag = oR > 20 ? 'wide, high conviction' : oR > 10 ? 'moderate' : 'tight, low conviction';
+          const avgV = bars.reduce((s, b) => s + b.v, 0) / bars.length;
+          const vTag = avgV > 5000 ? 'above-avg, conviction present' : avgV > 2000 ? 'moderate' : 'below-avg, conviction unclear';
+          const rec  = bars.slice(-6);
+          const rMid = (Math.max.apply(null, rec.map(b => b.h)) + Math.min.apply(null, rec.map(b => b.l))) / 2;
+          const micro = rec[rec.length-1].c > rMid && oTrend.includes('Bullish') ? 'Aligned bullish'
+                      : rec[rec.length-1].c < rMid && oTrend.includes('Bearish') ? 'Aligned bearish'
+                      : 'Diverging — reduced conviction';
+          let bull = 0, bear = 0;
+          if (oTrend.includes('Bullish')) bull++; else if (oTrend.includes('Bearish')) bear++;
+          if (parseFloat(pdDiff) > 0) bull++; else bear++;
+          if (livePrice >= mid) bull++; else bear++;
+          if (micro.includes('bullish')) bull++; else if (micro.includes('bearish')) bear++;
+          const tot = bull + bear;
+          const comp = bull > bear + 1 ? `Bullish (${bull}/${tot} align)` : bear > bull + 1 ? `Bearish (${bear}/${tot} align)` : 'Conflicting — low conviction';
+          confluenceLines = [
+            `CONFLUENCE ANALYSIS (base your direction on this):`,
+            `1. Overnight Trend:    ${oTrend}`,
+            `2. Prev Day Close:     ${pdPos}`,
+            `3. vs Overnight Mid:   ${vsMP}`,
+            `4. Imbalance Zone:     ${imb}`,
+            `5. Overnight Range:    ${oR.toFixed(2)} pts — ${rTag}`,
+            `6. Volume:             Avg ${avgV >= 1000 ? (avgV/1000).toFixed(1)+'K' : avgV.toFixed(0)}/bar — ${vTag}`,
+            `7. Session ATR Est:    ~${(oR * 1.25).toFixed(2)} pts (range × 1.25)`,
+            `8. Micro-Trend:        ${micro}`,
+            `9. Bias Composite:     ${comp}`,
+            `→ DIRECTION RULE: If Bias Composite is Bullish → LONG. If Bearish → SHORT. If Conflicting → Low confidence.`,
+          ];
+        }
       }
 
       // VIX
       const vixData  = vixRes.status === 'fulfilled' ? await vixRes.value.json() : null;
-      if (!vixData) throw new Error('VIX fetch failed');
       const vixClose = vixData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
       const lastVix  = vixClose.filter(v => v != null).pop();
       if (lastVix) {
@@ -96,12 +159,11 @@ export default async function handler(req, res) {
       }
     } catch (e) { /* continue without market data */ }
 
-    // SPY Options + Economic Calendar removed — strategy drives direction only
-
     // ── 2. Build Claude prompt context ────────────────────────────────────
-    const marketContext = marketLines.length
-      ? `\nLIVE MARKET DATA (pre-market, before 6:30 AM PT open):\n${marketLines.join('\n')}\n`
-      : '';
+    const marketContext = [
+      marketLines.length ? `\nLIVE MARKET DATA:\n${marketLines.join('\n')}` : '',
+      confluenceLines.length ? `\n\n${confluenceLines.join('\n')}` : ''
+    ].join('');
 
     // ── 3. Call Claude ─────────────────────────────────────────────────────
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -116,25 +178,30 @@ export default async function handler(req, res) {
         max_tokens: 1000,
         messages: [{
           role: 'user',
-          content: `You are Bankroll Algo — a professional S&P 500 intraday trading signal engine used by real traders. Today is ${today}. Generate a realistic, specific daily signal for ES Futures (S&P 500) for the NYSE market open at 9:30 AM ET (6:30 AM PT).
+          content: `You are Bankroll Algo — a professional ES Futures signal engine. Today is ${today}. Generate a signal for the NYSE open (9:30 AM ET / 6:30 AM PT).
 ${marketContext}
-Respond ONLY with a valid JSON object. No markdown, no explanation, no extra text. Use realistic ES price levels around current market conditions.
 
-Format exactly:
+RULES:
+- Base direction STRICTLY on the Bias Composite above
+- Confidence: High if 3+ confluences align, Medium if 2 align, Low if conflicting
+- TP = 9pts from entry, SL = 11pts from entry (fixed)
+- Entry on 1-min chart: wait for structure confirmation + imbalance touch
+
+Respond ONLY with valid JSON, no markdown:
 {
   "direction": "LONG or SHORT",
   "bias": "Bullish or Bearish",
   "confidence": "High, Medium, or Low",
   "entry": "Market Open",
-  "take_profit": "specific ES price level e.g. 5612.50",
-  "stop_loss": "specific ES price level e.g. 5578.25",
-  "rr_ratio": "ratio e.g. 2.4:1",
-  "rr_target": "dollar amount for 1 contract e.g. +$850",
-  "rr_risk": "dollar amount for 1 contract e.g. -$350",
-  "confluence_1": "specific locked confluence e.g. Prior Day High Resistance",
-  "confluence_2": "specific locked confluence e.g. 15-min Bearish Engulfing",
-  "confluence_3": "specific locked confluence e.g. VWAP Rejection",
-  "confluence_public": "one visible free confluence e.g. Overnight Range Confirmed"
+  "take_profit": "ES price",
+  "stop_loss": "ES price",
+  "rr_ratio": "1:1",
+  "rr_target": "+$450",
+  "rr_risk": "-$550",
+  "confluence_1": "based on analysis above",
+  "confluence_2": "based on analysis above",
+  "confluence_3": "based on analysis above",
+  "confluence_public": "one visible free confluence"
 }`
         }]
       })
