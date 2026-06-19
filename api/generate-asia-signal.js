@@ -92,11 +92,35 @@ export default async function handler(req, res) {
           const vTag = avgV>5000?'above-avg':avgV>2000?'moderate':'below-avg';
           const rec=bars.slice(-6), rMid=(Math.max.apply(null,rec.map(b=>b.h))+Math.min.apply(null,rec.map(b=>b.l)))/2;
           const micro=rec[rec.length-1].c>rMid&&oTrend.includes('Bullish')?'Aligned bullish':rec[rec.length-1].c<rMid&&oTrend.includes('Bearish')?'Aligned bearish':'Diverging';
+          // ── Volume Profile: VAH / VAL / POC ───────────────────────────────
+          const bucket=0.25;
+          const volMap={};
+          for(const b of bars){
+            const lo=Math.floor(b.l/bucket)*bucket, hi=Math.ceil(b.h/bucket)*bucket;
+            const steps=Math.max(1,Math.round((hi-lo)/bucket)), vps=b.v/steps;
+            for(let p=lo;p<=hi;p=Math.round((p+bucket)*10000)/10000){ const k=p.toFixed(2); volMap[k]=(volMap[k]||0)+vps; }
+          }
+          const volE=Object.entries(volMap).map(([p,v])=>({p:parseFloat(p),v})).sort((a,b)=>b.v-a.v);
+          const poc=volE[0]?.p||mid;
+          const totalVP=volE.reduce((s,e)=>s+e.v,0);
+          let acc=0,vaHi=poc,vaLo=poc;
+          const srtd=[...volE].sort((a,b)=>a.p-b.p);
+          const pocI=srtd.findIndex(e=>e.p===poc);
+          let up=pocI+1,dn=pocI-1; acc+=volE[0]?.v||0;
+          while(acc<totalVP*0.70&&(up<srtd.length||dn>=0)){
+            const uv=up<srtd.length?srtd[up].v:0, dv=dn>=0?srtd[dn].v:0;
+            if(uv>=dv){acc+=uv;vaHi=srtd[up]?.p||vaHi;up++;}else{acc+=dv;vaLo=srtd[dn]?.p||vaLo;dn--;}
+          }
+          const vaTag=livePrice>vaHi?`Above VAH (${vaHi.toFixed(2)}) — extended, bearish lean`:livePrice<vaLo?`Below VAL (${vaLo.toFixed(2)}) — cheap, bullish lean`:`Inside value area (${vaLo.toFixed(2)}–${vaHi.toFixed(2)}) — neutral`;
+          const pocTag=livePrice>poc?`Price above POC (${poc.toFixed(2)}) — bullish`:`Price below POC (${poc.toFixed(2)}) — bearish`;
+
           let bull=0,bear=0;
           if(oTrend.includes('Bullish'))bull++;else if(oTrend.includes('Bearish'))bear++;
           if(parseFloat(pdDiff)>0)bull++;else bear++;
           if(livePrice>=mid)bull++;else bear++;
           if(micro.includes('bullish'))bull++;else if(micro.includes('bearish'))bear++;
+          if(vaTag.includes('cheap'))bull++;else if(vaTag.includes('extended'))bear++;
+          if(pocTag.includes('above POC'))bull++;else bear++;
           const tot=bull+bear, comp=bull>bear+1?`Bullish (${bull}/${tot})`:bear>bull+1?`Bearish (${bear}/${tot})`:'Conflicting';
           ctx.confluences = [
             { label: 'Overnight Trend',  value: oTrend },
@@ -107,6 +131,8 @@ export default async function handler(req, res) {
             { label: 'Volume',           value: `Avg ${avgV>=1000?(avgV/1000).toFixed(1)+'K':avgV.toFixed(0)}/bar — ${vTag}` },
             { label: 'Session ATR',      value: `~${(oR*1.25).toFixed(2)} pts` },
             { label: 'Micro-Trend',      value: micro },
+            { label: 'Value Area',       value: vaTag },
+            { label: 'POC',              value: pocTag },
             { label: 'Bias Composite',   value: comp },
           ];
           confluenceLines = [
@@ -116,7 +142,10 @@ export default async function handler(req, res) {
             `5. O/N Range:       ${oR.toFixed(2)} pts — ${rTag}`,
             `6. Volume:          Avg ${avgV>=1000?(avgV/1000).toFixed(1)+'K':avgV.toFixed(0)}/bar — ${vTag}`,
             `7. Session ATR:     ~${(oR*1.25).toFixed(2)} pts`,
-            `8. Micro-Trend:     ${micro}`, `9. Bias Composite:  ${comp}`,
+            `8. Micro-Trend:     ${micro}`,
+            `9. Value Area:      ${vaTag}`,
+            `10. POC:            ${pocTag}`,
+            `11. Bias Composite: ${comp}`,
             `→ Bullish composite = LONG. Bearish = SHORT. Conflicting = Low confidence.`,
           ];
         }

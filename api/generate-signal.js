@@ -131,11 +131,54 @@ export default async function handler(req, res) {
           const micro = rec[rec.length-1].c > rMid && oTrend.includes('Bullish') ? 'Aligned bullish'
                       : rec[rec.length-1].c < rMid && oTrend.includes('Bearish') ? 'Aligned bearish'
                       : 'Diverging — reduced conviction';
+          // ── Volume Profile: VAH / VAL / POC ───────────────────────────────
+          const bucket = 0.25; // 0.25pt price buckets
+          const volMap = {};
+          for (const b of bars) {
+            const lo = Math.floor(b.l / bucket) * bucket;
+            const hi = Math.ceil(b.h  / bucket) * bucket;
+            const steps = Math.max(1, Math.round((hi - lo) / bucket));
+            const vPerStep = b.v / steps;
+            for (let p = lo; p <= hi; p = Math.round((p + bucket) * 10000) / 10000) {
+              const key = p.toFixed(2);
+              volMap[key] = (volMap[key] || 0) + vPerStep;
+            }
+          }
+          const volEntries = Object.entries(volMap).map(([p, v]) => ({ p: parseFloat(p), v })).sort((a, b) => b.v - a.v);
+          const poc = volEntries[0]?.p || mid;
+          const totalVolVP = volEntries.reduce((s, e) => s + e.v, 0);
+          const target70 = totalVolVP * 0.70;
+          let accumulated = 0, vaHi = poc, vaLo = poc;
+          const sorted = [...volEntries].sort((a, b) => a.p - b.p);
+          const pocIdx = sorted.findIndex(e => e.p === poc);
+          let up = pocIdx + 1, dn = pocIdx - 1;
+          accumulated += volEntries[0]?.v || 0;
+          while (accumulated < target70 && (up < sorted.length || dn >= 0)) {
+            const upV = up < sorted.length ? sorted[up].v : 0;
+            const dnV = dn >= 0 ? sorted[dn].v : 0;
+            if (upV >= dnV) { accumulated += upV; vaHi = sorted[up]?.p || vaHi; up++; }
+            else             { accumulated += dnV; vaLo = sorted[dn]?.p || vaLo; dn--; }
+          }
+          const vaTag = livePrice > vaHi
+            ? `Above VAH (${vaHi.toFixed(2)}) — extended, bearish lean`
+            : livePrice < vaLo
+            ? `Below VAL (${vaLo.toFixed(2)}) — cheap, bullish lean`
+            : `Inside value area (${vaLo.toFixed(2)}–${vaHi.toFixed(2)}) — neutral`;
+          const pocTag = livePrice > poc
+            ? `Price above POC (${poc.toFixed(2)}) — bullish`
+            : `Price below POC (${poc.toFixed(2)}) — bearish`;
+
+          // ── Score all confluences including VAH/VAL/POC ────────────────
           let bull = 0, bear = 0;
           if (oTrend.includes('Bullish')) bull++; else if (oTrend.includes('Bearish')) bear++;
           if (parseFloat(pdDiff) > 0) bull++; else bear++;
           if (livePrice >= mid) bull++; else bear++;
           if (micro.includes('bullish')) bull++; else if (micro.includes('bearish')) bear++;
+          // VAH/VAL scoring
+          if (vaTag.includes('cheap')) bull++;
+          else if (vaTag.includes('extended')) bear++;
+          // POC scoring
+          if (pocTag.includes('above POC')) bull++; else bear++;
           const tot  = bull + bear;
           const comp = bull > bear + 1 ? `Bullish (${bull}/${tot} align)`
                      : bear > bull + 1 ? `Bearish (${bear}/${tot} align)`
@@ -150,6 +193,8 @@ export default async function handler(req, res) {
             { label: 'Volume',            value: `Avg ${avgV >= 1000 ? (avgV/1000).toFixed(1)+'K' : avgV.toFixed(0)}/bar — ${vTag}` },
             { label: 'Session ATR',       value: `~${(oR * 1.25).toFixed(2)} pts` },
             { label: 'Micro-Trend',       value: micro },
+            { label: 'Value Area',        value: vaTag },
+            { label: 'POC',               value: pocTag },
             { label: 'Bias Composite',    value: comp },
           ];
           confluenceLines = [
@@ -162,7 +207,9 @@ export default async function handler(req, res) {
             `6. Volume:             Avg ${avgV >= 1000 ? (avgV/1000).toFixed(1)+'K' : avgV.toFixed(0)}/bar — ${vTag}`,
             `7. Session ATR Est:    ~${(oR * 1.25).toFixed(2)} pts`,
             `8. Micro-Trend:        ${micro}`,
-            `9. Bias Composite:     ${comp}`,
+            `9. Value Area:         ${vaTag}`,
+            `10. POC:               ${pocTag}`,
+            `11. Bias Composite:    ${comp}`,
             `→ DIRECTION RULE: Bullish composite = LONG. Bearish = SHORT. Conflicting = Low confidence.`,
           ];
         }
