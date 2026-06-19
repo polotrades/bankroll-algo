@@ -35,7 +35,8 @@ export default async function handler(req, res) {
       news_events: [], news_bias: 'none'
     };
 
-    // ── 1. Fetch ES price + VIX + SPY options in parallel ─────────────────
+    // ── 1. Fetch ES + VIX (single ES fetch used for both market data + confluences) ──
+    let esDataShared = null;
     const [esRes, vixRes] = await Promise.allSettled([
       fetch('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }),
       fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
@@ -43,9 +44,9 @@ export default async function handler(req, res) {
 
     // ── ES price + VIX ────────────────────────────────────────────────────
     try {
-      const esData  = await esRes.value.json();
-      const esMeta  = esData?.chart?.result?.[0]?.meta;
-      const esQuote = esData?.chart?.result?.[0]?.indicators?.quote?.[0];
+      esDataShared  = await esRes.value.json();
+      const esMeta  = esDataShared?.chart?.result?.[0]?.meta;
+      const esQuote = esDataShared?.chart?.result?.[0]?.indicators?.quote?.[0];
 
       if (esMeta?.regularMarketPrice) {
         livePrice = esMeta.regularMarketPrice;
@@ -83,7 +84,6 @@ export default async function handler(req, res) {
 
       // VIX
       const vixData  = vixRes.status === 'fulfilled' ? await vixRes.value.json() : null;
-      if (!vixData) throw new Error('VIX fetch failed');
       const vixClose = vixData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
       const lastVix  = vixClose.filter(v => v != null).pop();
       if (lastVix) {
@@ -96,11 +96,10 @@ export default async function handler(req, res) {
       }
     } catch (e) { /* continue without market data */ }
 
-    // ── 2. Calculate 9 confluences from bar data ──────────────────────────
+    // ── 2. Calculate 9 confluences (reuses esDataShared — no extra fetch) ──
     let confluenceLines = [];
     try {
-      const esData2   = await (await fetch('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS })).json();
-      const result    = esData2?.chart?.result?.[0];
+      const result    = esDataShared?.chart?.result?.[0];
       const timestamps = result?.timestamp || [];
       const q         = result?.indicators?.quote?.[0] || {};
       const opens = q.open || [], highs = q.high || [], lows = q.low || [], closes = q.close || [], vols = q.volume || [];
