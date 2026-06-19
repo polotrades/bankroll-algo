@@ -35,10 +35,15 @@ export default async function handler(req, res) {
       news_events: [], news_bias: 'none'
     };
 
-    // ── 1. Fetch ES price + VIX + SPY options in parallel ─────────────────
+    // ── 1. Fetch ES price + VIX in parallel (5s timeout each) ────────────
+    const fetchWithTimeout = (url, opts, ms = 5000) => {
+      const ac = new AbortController();
+      const t = setTimeout(() => ac.abort(), ms);
+      return fetch(url, { ...opts, signal: ac.signal }).finally(() => clearTimeout(t));
+    };
     const [esRes, vixRes] = await Promise.allSettled([
-      fetch('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }),
-      fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
+      fetchWithTimeout('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }),
+      fetchWithTimeout('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
     ]);
 
     // ── ES price + VIX + Confluences (single fetch, no extra requests) ──────

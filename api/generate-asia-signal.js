@@ -31,11 +31,17 @@ export default async function handler(req, res) {
 
     let confluenceLines = [];
     try {
-      const [esRes, vixRes] = await Promise.all([
-        fetch('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }),
-        fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
+      const fetchWithTimeout = (url, opts, ms = 5000) => {
+        const ac = new AbortController();
+        const t = setTimeout(() => ac.abort(), ms);
+        return fetch(url, { ...opts, signal: ac.signal }).finally(() => clearTimeout(t));
+      };
+      const [esRes, vixRes] = await Promise.allSettled([
+        fetchWithTimeout('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }),
+        fetchWithTimeout('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
       ]);
-      const [esData, vixData] = await Promise.all([esRes.json(), vixRes.json()]);
+      const esData  = esRes.status === 'fulfilled' ? await esRes.value.json() : null;
+      const vixData = vixRes.status === 'fulfilled' ? await vixRes.value.json() : null;
       const es    = esData?.chart?.result?.[0]?.meta;
       const esQ   = esData?.chart?.result?.[0]?.indicators?.quote?.[0];
       const esTS  = esData?.chart?.result?.[0]?.timestamp || [];
