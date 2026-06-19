@@ -1,0 +1,80 @@
+//@version=5
+indicator("Bankroll Algo — Volume Profile Sender", overlay=true, max_bars_back=500)
+
+// ── Settings ────────────────────────────────────────────────────────────────
+int   LOOKBACK = input.int(78,  "Bars lookback (overnight)", minval=10, maxval=200)
+int   ROWS     = input.int(30,  "VP rows",                   minval=10, maxval=60)
+
+// ── Volume Profile Calculation ───────────────────────────────────────────────
+float hiL     = ta.highest(high, LOOKBACK)
+float loL     = ta.lowest(low,   LOOKBACK)
+float rowSize = (hiL - loL) / ROWS
+
+// Build volume at each price row
+var float[] volRows = array.new_float(ROWS, 0.0)
+array.fill(volRows, 0.0)
+float totalVol = 0.0
+
+for i = 0 to LOOKBACK - 1
+    float bHi  = high[i]
+    float bLo  = low[i]
+    float bVol = volume[i]
+    float bRng = bHi - bLo
+    for r = 0 to ROWS - 1
+        float rLo = loL + r * rowSize
+        float rHi = rLo + rowSize
+        if bHi >= rLo and bLo <= rHi
+            float overlap  = math.min(bHi, rHi) - math.max(bLo, rLo)
+            float portion  = bRng > 0 ? bVol * (overlap / bRng) : bVol / ROWS
+            array.set(volRows, r, array.get(volRows, r) + portion)
+            totalVol += portion
+
+// POC — row with highest volume
+int   pocRow = array.indexof(volRows, array.max(volRows))
+float poc    = loL + (pocRow + 0.5) * rowSize
+
+// Value Area — expand from POC until 70% of volume is captured
+float vaTarget = totalVol * 0.70
+float vaAcc    = array.get(volRows, pocRow)
+int   vaHiRow  = pocRow
+int   vaLoRow  = pocRow
+
+while vaAcc < vaTarget and (vaHiRow < ROWS - 1 or vaLoRow > 0)
+    float upV = vaHiRow < ROWS - 1 ? array.get(volRows, vaHiRow + 1) : 0.0
+    float dnV = vaLoRow > 0        ? array.get(volRows, vaLoRow - 1) : 0.0
+    if upV >= dnV and vaHiRow < ROWS - 1
+        vaHiRow += 1
+        vaAcc   += upV
+    else if vaLoRow > 0
+        vaLoRow -= 1
+        vaAcc   += dnV
+    else
+        break
+
+float vah = loL + (vaHiRow + 1) * rowSize
+float val = loL + vaLoRow        * rowSize
+
+// ── Plots (visual confirmation on chart) ─────────────────────────────────────
+plot(poc, "POC", color.new(color.red,   0), 2, plot.style_line)
+plot(vah, "VAH", color.new(color.green, 0), 1, plot.style_line)
+plot(val, "VAL", color.new(color.green, 0), 1, plot.style_line)
+
+// ── Webhook Alert ─────────────────────────────────────────────────────────────
+// Fires at 6:20 AM PT (13:20 UTC) Mon–Fri for NY session
+// Fires at 3:50 PM PT (22:50 UTC) Sun–Thu for Asia session
+
+bool isNYAlert   = hour == 13 and minute == 20 and dayofweek >= dayofweek.monday and dayofweek <= dayofweek.friday
+bool isAsiaAlert = hour == 22 and minute == 50 and dayofweek >= dayofweek.sunday and dayofweek <= dayofweek.thursday
+
+string sessionName = isAsiaAlert ? "asia" : "ny"
+
+if isNYAlert or isAsiaAlert
+    alert(
+      '{"secret":"' + str.tostring(input.string("REPLACE_WITH_YOUR_SECRET", "Webhook Secret")) + '",' +
+      '"session":"' + sessionName + '",' +
+      '"poc":'      + str.tostring(poc,   "#.##") + ',' +
+      '"vah":'      + str.tostring(vah,   "#.##") + ',' +
+      '"val":'      + str.tostring(val,   "#.##") + ',' +
+      '"price":'    + str.tostring(close, "#.##") + '}',
+      alert.freq_once_per_bar
+    )

@@ -32,12 +32,18 @@ export default async function handler(req, res) {
     let marketContext = '';
     let ctx = { es_price: null, prev_close: null, pm_high: null, pm_low: null, overnight_change: null, vix: null };
     let confluenceLines = [];
+    let tvVP = null;
 
     try {
-      const [esRes, vixRes] = await Promise.allSettled([
+      const [esRes, vixRes, tvRes] = await Promise.allSettled([
         fetchT('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }),
-        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS })
+        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS }),
+        fetchT(process.env.UPSTASH_REDIS_REST_URL + '/get/ba_tv_asia_vp', { headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` } })
       ]);
+      if (tvRes.status === 'fulfilled') {
+        const tvJson = await tvRes.value.json();
+        if (tvJson?.result) tvVP = JSON.parse(tvJson.result);
+      }
 
       const esData  = esRes.status  === 'fulfilled' ? await esRes.value.json()  : null;
       const vixData = vixRes.status === 'fulfilled' ? await vixRes.value.json() : null;
@@ -92,24 +98,31 @@ export default async function handler(req, res) {
           const vTag = avgV>5000?'above-avg':avgV>2000?'moderate':'below-avg';
           const rec=bars.slice(-6), rMid=(Math.max.apply(null,rec.map(b=>b.h))+Math.min.apply(null,rec.map(b=>b.l)))/2;
           const micro=rec[rec.length-1].c>rMid&&oTrend.includes('Bullish')?'Aligned bullish':rec[rec.length-1].c<rMid&&oTrend.includes('Bearish')?'Aligned bearish':'Diverging';
-          // ── Volume Profile: VAH / VAL / POC ───────────────────────────────
-          const bucket=0.25;
-          const volMap={};
-          for(const b of bars){
-            const lo=Math.floor(b.l/bucket)*bucket, hi=Math.ceil(b.h/bucket)*bucket;
-            const steps=Math.max(1,Math.round((hi-lo)/bucket)), vps=b.v/steps;
-            for(let p=lo;p<=hi;p=Math.round((p+bucket)*10000)/10000){ const k=p.toFixed(2); volMap[k]=(volMap[k]||0)+vps; }
-          }
-          const volE=Object.entries(volMap).map(([p,v])=>({p:parseFloat(p),v})).sort((a,b)=>b.v-a.v);
-          const poc=volE[0]?.p||mid;
-          const totalVP=volE.reduce((s,e)=>s+e.v,0);
-          let acc=0,vaHi=poc,vaLo=poc;
-          const srtd=[...volE].sort((a,b)=>a.p-b.p);
-          const pocI=srtd.findIndex(e=>e.p===poc);
-          let up=pocI+1,dn=pocI-1; acc+=volE[0]?.v||0;
-          while(acc<totalVP*0.70&&(up<srtd.length||dn>=0)){
-            const uv=up<srtd.length?srtd[up].v:0, dv=dn>=0?srtd[dn].v:0;
-            if(uv>=dv){acc+=uv;vaHi=srtd[up]?.p||vaHi;up++;}else{acc+=dv;vaLo=srtd[dn]?.p||vaLo;dn--;}
+          // ── Volume Profile: use TradingView data if available, else calculate
+          const useTVData = tvVP && tvVP.vah && tvVP.val && tvVP.poc;
+          let poc, vaHi, vaLo;
+          if (useTVData) {
+            poc = tvVP.poc; vaHi = tvVP.vah; vaLo = tvVP.val;
+            ctx.tv_vp_source = 'TradingView';
+          } else {
+            const bucket=0.25, volMap={};
+            for(const b of bars){
+              const lo=Math.floor(b.l/bucket)*bucket, hi=Math.ceil(b.h/bucket)*bucket;
+              const steps=Math.max(1,Math.round((hi-lo)/bucket)), vps=b.v/steps;
+              for(let p=lo;p<=hi;p=Math.round((p+bucket)*10000)/10000){ const k=p.toFixed(2); volMap[k]=(volMap[k]||0)+vps; }
+            }
+            const volE=Object.entries(volMap).map(([p,v])=>({p:parseFloat(p),v})).sort((a,b)=>b.v-a.v);
+            poc=volE[0]?.p||mid; vaHi=poc; vaLo=poc;
+            const totalVP=volE.reduce((s,e)=>s+e.v,0);
+            let acc=volE[0]?.v||0;
+            const srtd=[...volE].sort((a,b)=>a.p-b.p);
+            const pocI=srtd.findIndex(e=>e.p===poc);
+            let up=pocI+1,dn=pocI-1;
+            while(acc<totalVP*0.70&&(up<srtd.length||dn>=0)){
+              const uv=up<srtd.length?srtd[up].v:0, dv=dn>=0?srtd[dn].v:0;
+              if(uv>=dv){acc+=uv;vaHi=srtd[up]?.p||vaHi;up++;}else{acc+=dv;vaLo=srtd[dn]?.p||vaLo;dn--;}
+            }
+            ctx.tv_vp_source = 'Estimated';
           }
           const vaTag=livePrice>vaHi?`Above VAH (${vaHi.toFixed(2)}) — extended, bearish lean`:livePrice<vaLo?`Below VAL (${vaLo.toFixed(2)}) — cheap, bullish lean`:`Inside value area (${vaLo.toFixed(2)}–${vaHi.toFixed(2)}) — neutral`;
           const pocTag=livePrice>poc?`Price above POC (${poc.toFixed(2)}) — bullish`:`Price below POC (${poc.toFixed(2)}) — bearish`;
