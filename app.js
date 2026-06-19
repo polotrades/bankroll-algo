@@ -298,7 +298,6 @@ function populateSignal(signal) {
   const confGrid = document.getElementById('conf-grid');
   const confData = signal.market_context?.confluences;
   if (confGrid && confData && confData.length) {
-    const unlocked = document.body.classList.contains('unlocked');
     const signalDir = (signal.direction || '').toUpperCase(); // LONG or SHORT
     confGrid.innerHTML = confData.map((c, i) => {
       const v = c.value.toLowerCase();
@@ -309,14 +308,6 @@ function populateSignal(signal) {
       const conflicting = (signalDir === 'LONG' && isBearish) || (signalDir === 'SHORT' && isBullish);
       const iconColor = aligned ? '#0F6E56' : conflicting ? '#E05252' : '#8A8A8A';
       const icon = aligned ? 'ti-circle-check' : conflicting ? 'ti-circle-x' : 'ti-minus';
-      const isLocked = i < 3 && !unlocked;
-      if (isLocked) {
-        return `<div class="conf-item lockable">
-          <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px">${c.label}</span></div>
-          <div class="unlocked-state conf-item-text" style="display:none"></div>
-          <span class="conf-members">Members Only</span>
-        </div>`;
-      }
       return `<div class="conf-item conf-visible">
         <div class="conf-item-text" style="gap:8px">
           <i class="ti ${icon}" style="color:${iconColor};font-size:14px;flex-shrink:0"></i>
