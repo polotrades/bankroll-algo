@@ -98,6 +98,17 @@ export default async function handler(req, res) {
           if(livePrice>=mid)bull++;else bear++;
           if(micro.includes('bullish'))bull++;else if(micro.includes('bearish'))bear++;
           const tot=bull+bear, comp=bull>bear+1?`Bullish (${bull}/${tot})`:bear>bull+1?`Bearish (${bear}/${tot})`:'Conflicting';
+          ctx.confluences = [
+            { label: 'Overnight Trend',  value: oTrend },
+            { label: 'Prev Day Close',   value: pdPos },
+            { label: 'vs O/N Midpoint', value: vsMP },
+            { label: 'Imbalance Zone',   value: imb },
+            { label: 'Overnight Range',  value: `${oR.toFixed(2)} pts — ${rTag}` },
+            { label: 'Volume',           value: `Avg ${avgV>=1000?(avgV/1000).toFixed(1)+'K':avgV.toFixed(0)}/bar — ${vTag}` },
+            { label: 'Session ATR',      value: `~${(oR*1.25).toFixed(2)} pts` },
+            { label: 'Micro-Trend',      value: micro },
+            { label: 'Bias Composite',   value: comp },
+          ];
           confluenceLines = [
             `CONFLUENCE ANALYSIS:`,
             `1. Overnight Trend:  ${oTrend}`, `2. Prev Day Close:   ${pdPos}`,

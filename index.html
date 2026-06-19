@@ -197,25 +197,13 @@
               <span class="conf-title">Confluences</span>
               <span class="conf-confirmed"><i class="ti ti-circle-check"></i> Confirmed</span>
             </div>
-            <div class="conf-item lockable" id="conf-1-wrap">
-              <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px" id="conf-1-blur">Resistance level</span></div>
-              <div class="unlocked-state conf-item-text"><i class="ti ti-circle-check" style="color:#0F6E56"></i><span id="conf-1-val">—</span></div>
-              <span class="conf-members" id="conf-1-badge">Members Only</span>
-            </div>
-            <div class="conf-item lockable" id="conf-2-wrap">
-              <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px" id="conf-2-blur">Volume divergence</span></div>
-              <div class="unlocked-state conf-item-text"><i class="ti ti-circle-check" style="color:#0F6E56"></i><span id="conf-2-val">—</span></div>
-              <span class="conf-members" id="conf-2-badge">Members Only</span>
-            </div>
-            <div class="conf-item lockable" id="conf-3-wrap">
-              <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px" id="conf-3-blur">RSI overbought</span></div>
-              <div class="unlocked-state conf-item-text"><i class="ti ti-circle-check" style="color:#0F6E56"></i><span id="conf-3-val">—</span></div>
-              <span class="conf-members" id="conf-3-badge">Members Only</span>
-            </div>
-            <div class="conf-item conf-visible">
-              <div class="conf-item-text">
-                <div class="conf-check"><i class="ti ti-check" style="font-size:11px;color:#0F6E56"></i></div>
-                <span id="conf-public">Overnight Range</span>
+            <div id="conf-grid">
+              <!-- populated by populateSignal() -->
+              <div class="conf-item conf-visible">
+                <div class="conf-item-text">
+                  <div class="conf-check"><i class="ti ti-check" style="font-size:11px;color:#0F6E56"></i></div>
+                  <span id="conf-public">Loading...</span>
+                </div>
               </div>
             </div>
 

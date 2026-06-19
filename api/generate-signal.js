@@ -140,6 +140,18 @@ export default async function handler(req, res) {
           const comp = bull > bear + 1 ? `Bullish (${bull}/${tot} align)`
                      : bear > bull + 1 ? `Bearish (${bear}/${tot} align)`
                      : 'Conflicting — low conviction';
+          // Store structured confluences on ctx for frontend display
+          ctx.confluences = [
+            { label: 'Overnight Trend',   value: oTrend },
+            { label: 'Prev Day Close',    value: pdPos },
+            { label: 'vs O/N Midpoint',  value: vsMP },
+            { label: 'Imbalance Zone',    value: imb },
+            { label: 'Overnight Range',   value: `${oR.toFixed(2)} pts — ${rTag}` },
+            { label: 'Volume',            value: `Avg ${avgV >= 1000 ? (avgV/1000).toFixed(1)+'K' : avgV.toFixed(0)}/bar — ${vTag}` },
+            { label: 'Session ATR',       value: `~${(oR * 1.25).toFixed(2)} pts` },
+            { label: 'Micro-Trend',       value: micro },
+            { label: 'Bias Composite',    value: comp },
+          ];
           confluenceLines = [
             `CONFLUENCE ANALYSIS (base your direction on this):`,
             `1. Overnight Trend:    ${oTrend}`,

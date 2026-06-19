@@ -294,14 +294,42 @@ function populateSignal(signal) {
   document.getElementById('rr-target').textContent = signal.rr_target || '—';
   document.getElementById('rr-risk').textContent = signal.rr_risk || '—';
 
-  // Confluences
-  document.getElementById('conf-1-blur').textContent = signal.confluence_1 || 'Resistance level';
-  document.getElementById('conf-2-blur').textContent = signal.confluence_2 || 'Volume divergence';
-  document.getElementById('conf-3-blur').textContent = signal.confluence_3 || 'RSI overbought';
-  document.getElementById('conf-1-val').textContent = signal.confluence_1 || '—';
-  document.getElementById('conf-2-val').textContent = signal.confluence_2 || '—';
-  document.getElementById('conf-3-val').textContent = signal.confluence_3 || '—';
-  document.getElementById('conf-public').textContent = signal.confluence_public || 'Overnight Range';
+  // Confluences — render all 9 from market_context.confluences
+  const confGrid = document.getElementById('conf-grid');
+  const confData = signal.market_context?.confluences;
+  if (confGrid && confData && confData.length) {
+    const unlocked = document.body.classList.contains('unlocked');
+    const signalDir = (signal.direction || '').toUpperCase(); // LONG or SHORT
+    confGrid.innerHTML = confData.map((c, i) => {
+      const v = c.value.toLowerCase();
+      const isBullish = v.includes('bullish') || v.includes('above') || v.includes('hh/hl') || v.includes('aligned bullish');
+      const isBearish = v.includes('bearish') || v.includes('below') || v.includes('ll/lh') || v.includes('aligned bearish');
+      // Aligned = confluence matches signal direction
+      const aligned = (signalDir === 'LONG' && isBullish) || (signalDir === 'SHORT' && isBearish);
+      const conflicting = (signalDir === 'LONG' && isBearish) || (signalDir === 'SHORT' && isBullish);
+      const iconColor = aligned ? '#0F6E56' : conflicting ? '#E05252' : '#8A8A8A';
+      const icon = aligned ? 'ti-circle-check' : conflicting ? 'ti-circle-x' : 'ti-minus';
+      const isLocked = i < 3 && !unlocked;
+      if (isLocked) {
+        return `<div class="conf-item lockable">
+          <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px">${c.label}</span></div>
+          <div class="unlocked-state conf-item-text" style="display:none"></div>
+          <span class="conf-members">Members Only</span>
+        </div>`;
+      }
+      return `<div class="conf-item conf-visible">
+        <div class="conf-item-text" style="gap:8px">
+          <i class="ti ${icon}" style="color:${iconColor};font-size:14px;flex-shrink:0"></i>
+          <span style="color:var(--text-muted);font-size:11px;min-width:105px;flex-shrink:0">${c.label}</span>
+          <span style="font-size:12px;color:var(--text)">${c.value}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    // fallback to old single public confluence
+    const pub = signal.confluence_public || 'Overnight Range';
+    if (confGrid) confGrid.innerHTML = `<div class="conf-item conf-visible"><div class="conf-item-text"><div class="conf-check"><i class="ti ti-check" style="font-size:11px;color:#0F6E56"></i></div><span>${pub}</span></div></div>`;
+  }
 
   // Entry label — differs between sessions
   const entryEl = document.getElementById('entry-session-val');
