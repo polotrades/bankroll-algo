@@ -147,19 +147,26 @@ Respond ONLY with valid JSON. No markdown.
     signal.date    = today;
     signal.session = 'Asia';
 
-    // Fire and forget — don't block the response on the Redis write
-    fetchT(process.env.UPSTASH_REDIS_REST_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(['SET', 'ba_asia_signal', JSON.stringify(signal)])
-    }, 2000).catch(() => {});
+    // AWAITED Redis write — fire-and-forget was unreliable: Vercel can kill
+    // the function right after the response is sent, before the background
+    // write finishes. That's why the response looked fresh but the saved
+    // signal never actually updated.
+    try {
+      await fetchT(process.env.UPSTASH_REDIS_REST_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(['SET', 'ba_asia_signal', JSON.stringify(signal)])
+      }, 4000);
+    } catch (e) {
+      console.error('Redis write failed:', e.message);
+    }
 
     return { success: true, signal };
   };
 
-  // 7s race guard — same safety net as NY, prevents Vercel's 10s hard kill
+  // Function is configured for 30s (vercel.json) — give main() real room.
   const timeoutResult = new Promise(resolve =>
-    setTimeout(() => resolve({ error: 'Signal generation timed out — please try again' }), 7000)
+    setTimeout(() => resolve({ error: 'Signal generation timed out — please try again' }), 25000)
   );
 
   try {

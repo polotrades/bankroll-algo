@@ -307,19 +307,27 @@ export default async function handler(req, res) {
       date: today
     };
 
-    // ── 5. Save to Redis — fire and forget (don't block response) ─────────
-    fetchT(process.env.UPSTASH_REDIS_REST_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(['SET', 'current_signal', JSON.stringify(signal)])
-    }, 2000).catch(() => {});
+    // ── 5. Save to Redis — AWAITED. Fire-and-forget was unreliable: Vercel
+    // can tear down the function right after the response is sent, killing
+    // the write before it completes. That's why regenerate looked like it
+    // worked (response had fresh data) but the saved signal never updated.
+    try {
+      await fetchT(process.env.UPSTASH_REDIS_REST_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(['SET', 'current_signal', JSON.stringify(signal)])
+      }, 4000);
+    } catch (e) {
+      console.error('Redis write failed:', e.message);
+    }
 
     return { success: true, signal };
   };
 
-  // ── 7s overall race — gives Vercel 3s buffer to flush the response ─────
+  // ── Overall race guard — function is configured for 30s (vercel.json),
+  // so give main() real room instead of the old overly-tight 7s guard.
   const timeoutResult = new Promise(resolve =>
-    setTimeout(() => resolve({ error: 'Signal generation timed out — please try again' }), 7000)
+    setTimeout(() => resolve({ error: 'Signal generation timed out — please try again' }), 25000)
   );
 
   try {
