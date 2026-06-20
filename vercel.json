@@ -1,6 +1,16 @@
 {
   "functions": { "api/*.js": { "maxDuration": 30 } },
   "rewrites": [{ "source": "/api/(.*)", "destination": "/api/$1" }],
+  "headers": [
+    {
+      "source": "/app.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
+    },
+    {
+      "source": "/index.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
+    }
+  ],
   "crons": [
     { "path": "/api/generate-signal",      "schedule": "0 13 * * 1-5" },
     { "path": "/api/generate-asia-signal", "schedule": "0 23 * * 0-4" }
