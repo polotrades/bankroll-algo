@@ -408,12 +408,17 @@ async function adminRegenerateSignal() {
   const regenEndpoint = currentSession === 'asia' ? '/api/generate-asia-signal' : '/api/generate-signal';
   const getEndpoint   = currentSession === 'asia' ? '/api/get-asia-signal'     : '/api/get-signal';
 
-  // Fire-and-forget — don't await, Vercel drops the connection but Redis write completes
-  fetch(regenEndpoint, {
+  // Track whether the regenerate call itself succeeded, so we can show
+  // the REAL reason on failure instead of silently doing nothing.
+  let regenStatus = null, regenBody = null;
+  const regenPromise = fetch(regenEndpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ admin_key: adminPw })
-  }).catch(() => {});
+  }).then(async r => {
+    regenStatus = r.status;
+    try { regenBody = await r.json(); } catch (e) {}
+  }).catch(e => { regenStatus = 'network-error'; regenBody = { error: e.message }; });
 
   // Poll Redis for the new signal after 6s
   let secs = 6;
@@ -425,6 +430,19 @@ async function adminRegenerateSignal() {
 
   setTimeout(async () => {
     clearInterval(countdown);
+    await regenPromise; // make sure we know the real outcome before deciding what to show
+
+    if (regenStatus === 401) {
+      txt.textContent = 'Unauthorized — re-enter admin key';
+      btn.disabled = false;
+      return;
+    }
+    if (regenStatus && regenStatus !== 200) {
+      txt.textContent = `Failed (${regenStatus}): ${regenBody?.error || 'unknown error'}`;
+      btn.disabled = false;
+      return;
+    }
+
     try {
       const r = await fetch(getEndpoint + '?t=' + Date.now(), { cache: 'no-store' });
       const d = await r.json();
@@ -434,10 +452,12 @@ async function adminRegenerateSignal() {
         btn.style.background = '#1D9E75';
         setTimeout(() => { btn.disabled = false; txt.textContent = 'Regenerate Signal Now'; btn.style.background = ''; }, 3000);
       } else {
-        btn.disabled = false; txt.textContent = 'Regenerate Signal Now';
+        txt.textContent = 'No signal returned — try again';
+        btn.disabled = false;
       }
     } catch(e) {
-      btn.disabled = false; txt.textContent = 'Regenerate Signal Now';
+      txt.textContent = 'Error checking signal: ' + e.message;
+      btn.disabled = false;
     }
   }, 6000);
 }
