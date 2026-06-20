@@ -151,17 +151,20 @@ Respond ONLY with valid JSON. No markdown.
     // the function right after the response is sent, before the background
     // write finishes. That's why the response looked fresh but the saved
     // signal never actually updated.
+    let _redis_debug = null;
     try {
-      await fetchT(process.env.UPSTASH_REDIS_REST_URL, {
+      const redisRes = await fetchT(process.env.UPSTASH_REDIS_REST_URL, {
         method: 'POST',
         headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(['SET', 'ba_asia_signal', JSON.stringify(signal)])
       }, 4000);
+      _redis_debug = { status: redisRes.status, body: await redisRes.text() };
     } catch (e) {
+      _redis_debug = { error: e.message };
       console.error('Redis write failed:', e.message);
     }
 
-    return { success: true, signal };
+    return { success: true, signal, _redis_debug };
   };
 
   // Function is configured for 30s (vercel.json) — give main() real room.
