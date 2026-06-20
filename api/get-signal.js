@@ -2,6 +2,7 @@
 // Frontend calls this to load today's signal
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
   try {
     const upstashRes = await fetch(process.env.UPSTASH_REDIS_REST_URL, {
       method: 'POST',

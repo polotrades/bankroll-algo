@@ -221,7 +221,7 @@ document.getElementById('today-date').textContent = new Date().toLocaleDateStrin
 async function loadSignal() {
   const endpoint = currentSession === 'asia' ? '/api/get-asia-signal' : '/api/get-signal';
   try {
-    const res = await fetch(endpoint);
+    const res = await fetch(endpoint + '?t=' + Date.now(), { cache: 'no-store' });
     const data = await res.json();
 
     document.getElementById('signal-loading').style.display = 'none';
@@ -235,24 +235,10 @@ async function loadSignal() {
     populateSignal(data.signal);
 
   } catch (err) {
-    // Fallback: show a default signal if API not set up yet
+    // Real failure (network/parse error) — show empty state, never fake data
+    console.error('loadSignal failed:', err);
     document.getElementById('signal-loading').style.display = 'none';
-    document.getElementById('signal-body').style.display = 'block';
-    populateSignal({
-      direction: 'SHORT',
-      bias: 'Bearish',
-      confidence: 'High',
-      take_profit: '5,481.25',
-      stop_loss: '5,548.50',
-      rr_ratio: '2.3:1',
-      rr_target: '+$812',
-      rr_risk: '-$350',
-      confluence_1: 'Prior Day High Resistance',
-      confluence_2: '15-min Bearish Engulfing',
-      confluence_3: 'VWAP Rejection',
-      confluence_public: 'Overnight Range Confirmed',
-      generated_at: new Date().toISOString()
-    });
+    document.getElementById('signal-empty').style.display = 'block';
   }
 }
 
@@ -276,15 +262,21 @@ function populateSignal(signal) {
   confEl.textContent = signal.confidence;
   confEl.style.color = signal.confidence === 'High' ? '#534AB7' : signal.confidence === 'Medium' ? '#854F0B' : '#A32D2D';
 
-  // Low confidence banner — signal still shows, just flagged
+  // No-trade banner — moderate-conviction filter OR low confidence, signal still shows for reference
   const existingBanner = document.getElementById('no-trade-banner');
   if (existingBanner) existingBanner.remove();
-  if (signal.confidence === 'Low') {
+  if (signal.no_trade) {
+    const banner = document.createElement('div');
+    banner.id = 'no-trade-banner';
+    banner.style.cssText = 'margin:12px 0 4px;padding:10px 14px;background:#FCEBEB;border:0.5px solid #F09595;border-radius:8px;display:flex;align-items:center;gap:8px';
+    banner.innerHTML = `<span style="font-size:15px">🚫</span><div><div style="font-size:13px;font-weight:500;color:#A32D2D">No trade today</div><div style="font-size:11px;color:#791F1F;margin-top:1px">${signal.no_trade_reason || 'Moderate-conviction setup — below backtested breakeven.'}</div></div>`;
+    confEl.parentElement.insertAdjacentElement('afterend', banner);
+  } else if (signal.confidence === 'Low') {
     const banner = document.createElement('div');
     banner.id = 'no-trade-banner';
     banner.style.cssText = 'margin:12px 0 4px;padding:10px 14px;background:#FCEBEB;border:0.5px solid #F09595;border-radius:8px;display:flex;align-items:center;gap:8px';
     banner.innerHTML = `<span style="font-size:15px">🚫</span><div><div style="font-size:13px;font-weight:500;color:#A32D2D">No trade today</div><div style="font-size:11px;color:#791F1F;margin-top:1px">Low confidence — signal shown for reference only</div></div>`;
-    confEl.closest('.card') ? confEl.parentElement.insertBefore(banner, confEl.parentElement.nextSibling) : confEl.after(banner);
+    confEl.parentElement.insertAdjacentElement('afterend', banner);
   }
 
   // TP / SL / RR (unlocked values — shown only when unlocked)
@@ -411,32 +403,43 @@ async function adminRegenerateSignal() {
   const btn = document.getElementById('regen-btn');
   const txt = document.getElementById('regen-btn-text');
   btn.disabled = true;
-  txt.textContent = 'Generating...';
 
-  try {
-    const adminPw = localStorage.getItem('ba_admin_key') || '';
-    const regenEndpoint = currentSession === 'asia' ? '/api/generate-asia-signal' : '/api/generate-signal';
-    const res = await fetch(regenEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ admin_key: adminPw })
-    });
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch(e) { throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`); }
-    if (data.signal) {
-      populateSignal(data.signal);
-      txt.textContent = 'Signal Regenerated ✓';
-      btn.style.background = '#1D9E75';
-      setTimeout(() => { btn.disabled = false; txt.textContent = 'Regenerate Signal Now'; btn.style.background = ''; }, 3000);
-    } else {
-      alert('Error: ' + (data.error || 'Unknown error'));
+  const adminPw = localStorage.getItem('ba_admin_key') || '';
+  const regenEndpoint = currentSession === 'asia' ? '/api/generate-asia-signal' : '/api/generate-signal';
+  const getEndpoint   = currentSession === 'asia' ? '/api/get-asia-signal'     : '/api/get-signal';
+
+  // Fire-and-forget — don't await, Vercel drops the connection but Redis write completes
+  fetch(regenEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ admin_key: adminPw })
+  }).catch(() => {});
+
+  // Poll Redis for the new signal after 6s
+  let secs = 6;
+  txt.textContent = `Generating… ${secs}s`;
+  const countdown = setInterval(() => {
+    secs--;
+    txt.textContent = secs > 0 ? `Generating… ${secs}s` : 'Checking…';
+  }, 1000);
+
+  setTimeout(async () => {
+    clearInterval(countdown);
+    try {
+      const r = await fetch(getEndpoint + '?t=' + Date.now(), { cache: 'no-store' });
+      const d = await r.json();
+      if (d.signal) {
+        populateSignal(d.signal);
+        txt.textContent = 'Signal Regenerated ✓';
+        btn.style.background = '#1D9E75';
+        setTimeout(() => { btn.disabled = false; txt.textContent = 'Regenerate Signal Now'; btn.style.background = ''; }, 3000);
+      } else {
+        btn.disabled = false; txt.textContent = 'Regenerate Signal Now';
+      }
+    } catch(e) {
       btn.disabled = false; txt.textContent = 'Regenerate Signal Now';
     }
-  } catch (err) {
-    alert('Failed: ' + err.message);
-    btn.disabled = false; txt.textContent = 'Regenerate Signal Now';
-  }
+  }, 6000);
 }
 
 // ── Calendar ──────────────────────────────────────────────────────────────

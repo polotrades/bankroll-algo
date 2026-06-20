@@ -43,9 +43,9 @@ export default async function handler(req, res) {
     let tvVP = null; // TradingView volume profile data (POC, VAH, VAL)
     try {
       const [esRes, vixRes, tvRes] = await Promise.allSettled([
-        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }),
-        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS }),
-        fetchT(process.env.UPSTASH_REDIS_REST_URL + '/get/ba_tv_ny_vp', { headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` } })
+        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }, 2500),
+        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d', { headers: YF_HEADERS }, 2500),
+        fetchT(process.env.UPSTASH_REDIS_REST_URL + '/get/ba_tv_ny_vp', { headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` } }, 1500)
       ]);
       // Parse TradingView VP from Redis
       if (tvRes.status === 'fulfilled') {
@@ -203,6 +203,13 @@ export default async function handler(req, res) {
           const comp = bull > bear + 1 ? `Bullish (${bull}/${tot} align)`
                      : bear > bull + 1 ? `Bearish (${bear}/${tot} align)`
                      : 'Conflicting — low conviction';
+          // ── Conviction-gap filter (from 60-day backtest analysis) ──────
+          // Gap of 2-3 backtested at 48% win rate (below 55% breakeven) — skip these.
+          // Gap of 0-1 or 4-5 backtested at 72-78% win rate — trade these.
+          ctx.bull_score = bull;
+          ctx.bear_score = bear;
+          ctx.conviction_gap = Math.abs(bull - bear);
+          ctx.no_trade = ctx.conviction_gap === 2 || ctx.conviction_gap === 3;
           // Store structured confluences on ctx for frontend display
           ctx.confluences = [
             { label: 'Overnight Trend',   value: oTrend },
@@ -246,13 +253,13 @@ export default async function handler(req, res) {
       }
     } catch (e) { /* continue without market data */ }
 
-    // ── 2. Build prompt ────────────────────────────────────────────────────
-    const marketContext = [
-      marketLines.length ? `\nLIVE MARKET DATA:\n${marketLines.join('\n')}` : '',
-      confluenceLines.length ? `\n\n${confluenceLines.join('\n')}` : ''
-    ].join('');
+    // ── 2. Derive bias from confluences (no need for Claude to figure it out)
+    const biasComp = ctx.confluences?.find(c => c.label === 'Bias Composite')?.value || '';
+    const autoDir  = biasComp.startsWith('Bearish') ? 'SHORT' : 'LONG';
+    const autoBias = autoDir === 'LONG' ? 'Bullish' : 'Bearish';
 
-    // ── 3. Call Claude (5s timeout) ────────────────────────────────────────
+    // ── 3. Call Claude — ONLY for confidence level (tiny output = fast) ────
+    const compLine = confluenceLines.find(l => l.includes('Bias Composite')) || '';
     const claudeRes = await fetchT('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -262,51 +269,57 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 400,
+        max_tokens: 20,
         messages: [{
           role: 'user',
-          content: `You are Bankroll Algo — ES Futures signal engine. Today is ${today}. Generate NYSE open signal (9:30 AM ET).
-${marketContext}
-
-RULES: Direction based STRICTLY on Bias Composite. TP=9pts, SL=11pts.
-
-Respond ONLY valid JSON no markdown:
-{"direction":"LONG or SHORT","bias":"Bullish or Bearish","confidence":"High, Medium, or Low","entry":"Market Open","take_profit":"ES price","stop_loss":"ES price","rr_ratio":"1:1","rr_target":"+$450","rr_risk":"-$550","confluence_1":"from analysis","confluence_2":"from analysis","confluence_3":"from analysis","confluence_public":"one free confluence"}`
+          content: `ES Futures NYSE open signal. ${compLine}. Rate confidence: High (5+ align), Medium (3-4), Low (<3). Reply ONLY one word: High, Medium, or Low.`
         }]
       })
-    }, 5000);
+    }, 3500);
 
-    const claudeData = await claudeRes.json();
-    if (!claudeData.content) throw new Error('Claude error: ' + JSON.stringify(claudeData).slice(0, 100));
+    let confidence = 'Medium';
+    try {
+      const claudeData = await claudeRes.json();
+      const raw = (claudeData.content?.[0]?.text || '').trim();
+      if (raw.startsWith('High')) confidence = 'High';
+      else if (raw.startsWith('Low')) confidence = 'Low';
+    } catch(e) { /* use default Medium */ }
 
-    const raw    = claudeData.content.map(c => c.text || '').join('');
-    const signal = JSON.parse(raw.replace(/```json|```/g, '').trim());
-
-    // ── 4. Override TP/SL ─────────────────────────────────────────────────
+    // ── 4. Build signal — everything calculated server-side ───────────────
     const price  = livePrice || 5800;
-    const isLong = signal.direction === 'LONG';
-    signal.take_profit = isLong ? (price + 9).toFixed(2)  : (price - 9).toFixed(2);
-    signal.stop_loss   = isLong ? (price - 11).toFixed(2) : (price + 11).toFixed(2);
-    signal.rr_ratio    = '1:1';
-    signal.rr_target   = '+$450';
-    signal.rr_risk     = '-$550';
-    signal.market_context = ctx;
-    signal.generated_at   = new Date().toISOString();
-    signal.date = today;
+    const isLong = autoDir === 'LONG';
+    const signal = {
+      direction:   autoDir,
+      bias:        autoBias,
+      confidence,
+      entry:       'Market Open',
+      take_profit: isLong ? (price + 9).toFixed(2)  : (price - 9).toFixed(2),
+      stop_loss:   isLong ? (price - 11).toFixed(2) : (price + 11).toFixed(2),
+      rr_ratio:    '1:1',
+      rr_target:   '+$450',
+      rr_risk:     '-$550',
+      no_trade:        !!ctx.no_trade,
+      no_trade_reason: ctx.no_trade
+        ? `Moderate-conviction zone (${ctx.bull_score}-${ctx.bear_score} confluence split) — backtested at 48% win rate, below breakeven. Skipping this setup.`
+        : null,
+      market_context: ctx,
+      generated_at:   new Date().toISOString(),
+      date: today
+    };
 
-    // ── 5. Save to Redis (2s timeout) ─────────────────────────────────────
-    await fetchT(process.env.UPSTASH_REDIS_REST_URL, {
+    // ── 5. Save to Redis — fire and forget (don't block response) ─────────
+    fetchT(process.env.UPSTASH_REDIS_REST_URL, {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(['SET', 'current_signal', JSON.stringify(signal)])
-    }, 2000);
+    }, 2000).catch(() => {});
 
     return { success: true, signal };
   };
 
-  // ── 9s overall race — guarantees a response before Vercel's 10s wall ───
+  // ── 7s overall race — gives Vercel 3s buffer to flush the response ─────
   const timeoutResult = new Promise(resolve =>
-    setTimeout(() => resolve({ error: 'Signal generation timed out — please try again' }), 9000)
+    setTimeout(() => resolve({ error: 'Signal generation timed out — please try again' }), 7000)
   );
 
   try {

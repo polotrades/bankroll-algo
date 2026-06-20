@@ -2,8 +2,9 @@
 indicator("Bankroll Algo — Volume Profile Sender", overlay=true, max_bars_back=500)
 
 // ── Settings ────────────────────────────────────────────────────────────────
-int   LOOKBACK = input.int(78,  "Bars lookback (overnight)", minval=10, maxval=200)
-int   ROWS     = input.int(30,  "VP rows",                   minval=10, maxval=60)
+string webhookSecret = input.string("polobankroll", "Webhook Secret")
+int    LOOKBACK      = input.int(390, "Bars lookback (1-min bars)", minval=10, maxval=500)
+int    ROWS          = input.int(30,  "VP rows",                    minval=10, maxval=60)
 
 // ── Volume Profile Calculation ───────────────────────────────────────────────
 float hiL     = ta.highest(high, LOOKBACK)
@@ -54,14 +55,11 @@ while vaAcc < vaTarget and (vaHiRow < ROWS - 1 or vaLoRow > 0)
 float vah = loL + (vaHiRow + 1) * rowSize
 float val = loL + vaLoRow        * rowSize
 
-// ── Plots (visual confirmation on chart) ─────────────────────────────────────
-plot(poc, "POC", color.new(color.red,   0), 2, plot.style_line)
-plot(vah, "VAH", color.new(color.green, 0), 1, plot.style_line)
-plot(val, "VAL", color.new(color.green, 0), 1, plot.style_line)
+// ── No plot lines on chart ────────────────────────────────────────────────────
 
 // ── Webhook Alert ─────────────────────────────────────────────────────────────
-// Fires at 6:20 AM PT (13:20 UTC) Mon–Fri for NY session
-// Fires at 3:50 PM PT (22:50 UTC) Sun–Thu for Asia session
+// NY:   6:20 AM PT  = 13:20 UTC  Mon–Fri
+// Asia: 3:50 PM PT  = 22:50 UTC  Sun–Thu
 
 bool isNYAlert   = hour == 13 and minute == 20 and dayofweek >= dayofweek.monday and dayofweek <= dayofweek.friday
 bool isAsiaAlert = hour == 22 and minute == 50 and dayofweek >= dayofweek.sunday and dayofweek <= dayofweek.thursday
@@ -69,12 +67,5 @@ bool isAsiaAlert = hour == 22 and minute == 50 and dayofweek >= dayofweek.sunday
 string sessionName = isAsiaAlert ? "asia" : "ny"
 
 if isNYAlert or isAsiaAlert
-    alert(
-      '{"secret":"' + str.tostring(input.string("REPLACE_WITH_YOUR_SECRET", "Webhook Secret")) + '",' +
-      '"session":"' + sessionName + '",' +
-      '"poc":'      + str.tostring(poc,   "#.##") + ',' +
-      '"vah":'      + str.tostring(vah,   "#.##") + ',' +
-      '"val":'      + str.tostring(val,   "#.##") + ',' +
-      '"price":'    + str.tostring(close, "#.##") + '}',
-      alert.freq_once_per_bar
-    )
+    string msg = '{"secret":"' + webhookSecret + '","session":"' + sessionName + '","poc":' + str.tostring(poc, "#.##") + ',"vah":' + str.tostring(vah, "#.##") + ',"val":' + str.tostring(val, "#.##") + ',"price":' + str.tostring(close, "#.##") + '}'
+    alert(msg, alert.freq_once_per_bar)
