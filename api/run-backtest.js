@@ -3,8 +3,9 @@
 // Returns only the aggregated results, not raw bar data.
 export default async function handler(req, res) {
   const TP_PTS = 9, SL_PTS = 11, PT_VALUE = 50;
-  const { start, end, interval } = req.query;
+  const { start, end, interval, trail } = req.query;
   const BAR_INTERVAL = interval === '60m' ? '60m' : '5m';
+  const TRAIL_PTS = trail ? parseFloat(trail) : 5;
 
   try {
     let yfUrl;
@@ -147,7 +148,6 @@ export default async function handler(req, res) {
       // of exiting, trail a stop 5pts behind the best price reached, riding
       // it until the trail gets hit or the session window ends. Same entry,
       // same initial stop — only what happens AFTER hitting +9 differs.
-      const TRAIL_PTS = 5;
       let best = entryPrice, trailArmed = false, exitPrice = null;
       for (const b of sessionBars) {
         if (direction === 'LONG') {
