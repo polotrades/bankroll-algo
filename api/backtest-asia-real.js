@@ -132,12 +132,10 @@ Use Asian market conditions, overnight ES price action, and Nikkei/HSI data to d
 
 Respond ONLY with valid JSON. No markdown.
 
-{
-  "direction": "LONG or SHORT",
-  "bias": "Bullish or Bearish",
-  "confidence": "High, Medium, or Low",
-  "confluence_1": "specific Asia session technical confluence"
-}`;
+Reply with ONLY these two words on one line, nothing else, no JSON, no punctuation:
+DIRECTION CONFIDENCE
+where DIRECTION is LONG or SHORT, and CONFIDENCE is High, Medium, or Low.
+Example reply: SHORT Medium`;
 
       let direction = null, confidence = 'Medium';
       try {
@@ -148,9 +146,11 @@ Respond ONLY with valid JSON. No markdown.
         }, 8000);
         const claudeData = await claudeRes.json();
         const raw = (claudeData.content || []).map(c => c.text || '').join('');
-        const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
-        direction = parsed.direction === 'LONG' ? 'LONG' : 'SHORT';
-        confidence = parsed.confidence || 'Medium';
+        const dirMatch = raw.match(/\b(LONG|SHORT)\b/i);
+        const confMatch = raw.match(/\b(High|Medium|Low)\b/i);
+        if (!dirMatch) throw new Error('no direction found in reply: ' + raw.slice(0, 200));
+        direction = dirMatch[1].toUpperCase();
+        confidence = confMatch ? confMatch[1] : 'Medium';
       } catch (e) {
         skipped.push({ date: dayStr, reason: 'claude error: ' + e.message });
         continue;
