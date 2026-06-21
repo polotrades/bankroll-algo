@@ -147,6 +147,15 @@ Respond ONLY with valid JSON. No markdown.
     signal.date    = today;
     signal.session = 'Asia';
 
+    // LONG-only filter — backtested Jan-June 2026 on real data: LONG calls
+    // hit 73.4% win rate (+$11,800), SHORT calls hit 48.8% (-$2,650), well
+    // below the 55% breakeven this 9pt-TP/11pt-SL setup needs. Still show
+    // Claude's actual SHORT read for reference, just flagged as no-trade.
+    signal.no_trade = !isLong;
+    signal.no_trade_reason = !isLong
+      ? 'SHORT signals backtested at 48.8% win rate (below the 55% breakeven for this setup) vs 73.4% for LONG — skipping this setup.'
+      : null;
+
     // AWAITED Redis write — fire-and-forget was unreliable: Vercel can kill
     // the function right after the response is sent, before the background
     // write finishes. That's why the response looked fresh but the saved
