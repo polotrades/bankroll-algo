@@ -134,7 +134,7 @@ export default async function handler(req, res) {
       }
 
       const pnl = outcome === 'WIN' ? TP_PTS * PT_VALUE : -SL_PTS * PT_VALUE;
-      trades.push({ date: dayStr, direction, bull, bear, entry: +entryPrice.toFixed(2), outcome, pnl });
+      trades.push({ date: dayStr, direction, bull, bear, gap: Math.abs(bull - bear), range: +(oH - oL).toFixed(2), entry: +entryPrice.toFixed(2), outcome, pnl });
     }
 
     // ── Aggregate results ────────────────────────────────────────────────
