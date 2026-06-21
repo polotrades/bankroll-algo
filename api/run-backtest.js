@@ -142,7 +142,31 @@ export default async function handler(req, res) {
       }
 
       const pnl = outcome === 'WIN' ? TP_PTS * PT_VALUE : -SL_PTS * PT_VALUE;
-      trades.push({ date: dayStr, direction, bull, bear, gap: Math.abs(bull - bear), range: +(oH - oL).toFixed(2), entry: +entryPrice.toFixed(2), outcome, pnl });
+
+      // ── Alt strategy test: once price reaches the original 9pt TP, instead
+      // of exiting, trail a stop 5pts behind the best price reached, riding
+      // it until the trail gets hit or the session window ends. Same entry,
+      // same initial stop — only what happens AFTER hitting +9 differs.
+      const TRAIL_PTS = 5;
+      let best = entryPrice, trailArmed = false, exitPrice = null;
+      for (const b of sessionBars) {
+        if (direction === 'LONG') {
+          best = Math.max(best, b.h);
+          if (!trailArmed && best >= tp) trailArmed = true;
+          const stopNow = trailArmed ? best - TRAIL_PTS : sl;
+          if (b.l <= stopNow) { exitPrice = stopNow; break; }
+        } else {
+          best = Math.min(best, b.l);
+          if (!trailArmed && best <= tp) trailArmed = true;
+          const stopNow = trailArmed ? best + TRAIL_PTS : sl;
+          if (b.h >= stopNow) { exitPrice = stopNow; break; }
+        }
+      }
+      if (exitPrice == null) exitPrice = sessionBars[sessionBars.length - 1].c;
+      const exitPts = direction === 'LONG' ? (exitPrice - entryPrice) : (entryPrice - exitPrice);
+      const pnlTrail = +(exitPts * PT_VALUE).toFixed(2);
+
+      trades.push({ date: dayStr, direction, bull, bear, gap: Math.abs(bull - bear), range: +(oH - oL).toFixed(2), entry: +entryPrice.toFixed(2), outcome, pnl, pnlTrail });
     }
 
     // ── Aggregate results ────────────────────────────────────────────────
