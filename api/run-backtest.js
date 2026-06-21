@@ -3,12 +3,19 @@
 // Returns only the aggregated results, not raw bar data.
 export default async function handler(req, res) {
   const TP_PTS = 9, SL_PTS = 11, PT_VALUE = 50;
+  const { start, end, interval } = req.query;
+  const BAR_INTERVAL = interval === '60m' ? '60m' : '5m';
 
   try {
-    const r = await fetch(
-      'https://query1.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=60d&includePrePost=true',
-      { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' } }
-    );
+    let yfUrl;
+    if (start && end) {
+      const period1 = Math.floor(new Date(start + 'T00:00:00Z').getTime() / 1000) - 2 * 86400;
+      const period2 = Math.floor(new Date(end + 'T00:00:00Z').getTime() / 1000) + 2 * 86400;
+      yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/ES=F?period1=${period1}&period2=${period2}&interval=${BAR_INTERVAL}&includePrePost=true`;
+    } else {
+      yfUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=60d&includePrePost=true';
+    }
+    const r = await fetch(yfUrl, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' } });
     const data = await r.json();
     const result = data?.chart?.result?.[0];
     if (!result) return res.status(500).json({ error: 'No data from Yahoo' });
@@ -23,7 +30,8 @@ export default async function handler(req, res) {
     }
 
     // Group into trading days (UTC date)
-    const dayKeys = [...new Set(bars.map(b => new Date(b.ts * 1000).toISOString().slice(0, 10)))].sort();
+    let dayKeys = [...new Set(bars.map(b => new Date(b.ts * 1000).toISOString().slice(0, 10)))].sort();
+    if (start && end) dayKeys = dayKeys.filter(d => d >= start && d <= end);
 
     const trades = [];
     let skippedNoBars = 0, skippedWeekend = 0;
