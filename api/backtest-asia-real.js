@@ -144,7 +144,7 @@ Respond ONLY with valid JSON. No markdown.
         const claudeRes = await fetchT('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 150, messages: [{ role: 'user', content: prompt }] })
+          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
         }, 8000);
         const claudeData = await claudeRes.json();
         const raw = (claudeData.content || []).map(c => c.text || '').join('');
