@@ -16,10 +16,11 @@
 
 export default async function handler(req, res) {
   const TP_PTS = 9, SL_PTS = 11, PT_VALUE = 50;
-  const { start, end } = req.query;
+  const { start, end, interval } = req.query;
+  const BAR_INTERVAL = interval === '5m' ? '5m' : '60m';
 
   if (!start || !end) {
-    return res.status(400).json({ error: 'Provide ?start=YYYY-MM-DD&end=YYYY-MM-DD' });
+    return res.status(400).json({ error: 'Provide ?start=YYYY-MM-DD&end=YYYY-MM-DD (optional &interval=5m)' });
   }
 
   const fetchT = (url, opts, ms = 8000) => {
@@ -36,7 +37,7 @@ export default async function handler(req, res) {
     const period2 = Math.floor(endDate.getTime()   / 1000) + 2 * 86400;
 
     const YF_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json', 'Referer': 'https://finance.yahoo.com/' };
-    const yfUrl = (sym) => `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?period1=${period1}&period2=${period2}&interval=60m`;
+    const yfUrl = (sym) => `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?period1=${period1}&period2=${period2}&interval=${BAR_INTERVAL}`;
 
     const [esRes, nikkeiRes, hsiRes] = await Promise.allSettled([
       fetchT(yfUrl('ES=F'), { headers: YF_HEADERS }, 8000),
@@ -184,7 +185,7 @@ Example reply: SHORT Medium`;
       trades.push({ date: dayStr, direction, confidence, entryPrice: +entryPrice.toFixed(2), outcome, pnl });
     }
 
-    return res.status(200).json({ trades, skipped, range: { start, end } });
+    return res.status(200).json({ trades, skipped, range: { start, end }, interval: BAR_INTERVAL });
   } catch (err) {
     return res.status(500).json({ error: err.message, stack: err.stack });
   }
