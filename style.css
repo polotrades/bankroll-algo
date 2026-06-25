@@ -267,10 +267,11 @@ body {
 .cal-hint { font-size: 11px; color: var(--text-muted); }
 .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
 .cal-day-label { font-size: 10px; color: var(--text-muted); text-align: center; padding: 2px; }
-.cal-day { font-size: 12px; text-align: center; padding: 5px 2px; border-radius: 5px; color: var(--text-muted); cursor: pointer; transition: all .1s; position: relative; }
+.cal-day { font-size: 12px; text-align: center; padding: 5px 2px; border-radius: 5px; color: var(--text-muted); cursor: pointer; transition: all .1s; position: relative; user-select: none; }
 .cal-day:hover:not(.empty):not(.future) { background: rgba(255,255,255,0.06); }
 .cal-day.win { background: var(--green-light); color: var(--green); font-weight: 500; }
 .cal-day.loss { background: var(--red-light); color: var(--red); font-weight: 500; }
+.dir-badge { position: absolute; bottom: 1px; right: 2px; font-size: 8px; font-weight: 700; line-height: 1; opacity: 0.7; letter-spacing: 0; }
 .cal-day.today { background: var(--gold); color: #07080F; font-weight: 600; }
 .cal-day.empty { cursor: default; color: transparent; }
 .cal-day.future { cursor: default; opacity: .2; }

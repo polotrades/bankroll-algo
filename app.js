@@ -557,8 +557,12 @@ function setResults(r) {
   else nyResults = r;
 }
 
-function getWins() { return Object.values(getResults()).filter(v => v === 'win').length; }
-function getLosses() { return Object.values(getResults()).filter(v => v === 'loss').length; }
+function getWins()   { return Object.values(getResults()).filter(v => v === 'win' || v === 'lw' || v === 'sw').length; }
+function getLosses() { return Object.values(getResults()).filter(v => v === 'loss' || v === 'll' || v === 'sl').length; }
+function getLongWins()    { return Object.values(getResults()).filter(v => v === 'lw').length; }
+function getLongLosses()  { return Object.values(getResults()).filter(v => v === 'll').length; }
+function getShortWins()   { return Object.values(getResults()).filter(v => v === 'sw').length; }
+function getShortLosses() { return Object.values(getResults()).filter(v => v === 'sl').length; }
 
 function updateStats() {
   const w = getWins(), l = getLosses(), total = w + l;
@@ -594,6 +598,36 @@ function updateStats() {
     el('perf-pts').textContent   = (netPts >= 0 ? '+' : '') + netPts + ' pts';
   }
 
+  // Direction breakdown card
+  const lw = getLongWins(), ll = getLongLosses(), sw = getShortWins(), sl = getShortLosses();
+  const lTotal = lw + ll, sTotal = sw + sl;
+  const lWR = lTotal > 0 ? Math.round(lw / lTotal * 100) : null;
+  const sWR = sTotal > 0 ? Math.round(sw / sTotal * 100) : null;
+  const lPnl = lw * 450 - ll * 550;
+  const sPnl = sw * 450 - sl * 550;
+  const dirEl = el('dir-breakdown');
+  if (dirEl) {
+    if (lTotal === 0 && sTotal === 0) {
+      dirEl.innerHTML = `<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:12px 0">No direction data yet — tap a calendar day to log trades with direction.</div>`;
+    } else {
+      const card = (label, wins, losses, wr, pnl, color) => {
+        const t = wins + losses;
+        const pnlStr = (pnl >= 0 ? '+' : '-') + '$' + Math.abs(pnl).toLocaleString();
+        const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+        return `<div style="background:var(--bg);border-radius:8px;padding:12px;border:0.5px solid var(--border);flex:1">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">${label}</div>
+          <div style="font-size:22px;font-weight:700;color:${color};margin-bottom:2px">${wr !== null ? wr + '%' : '—'}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">${wins}W / ${losses}L · ${t} trades</div>
+          <div style="font-size:12px;font-weight:500;color:${pnlColor}">${t > 0 ? pnlStr : '—'}</div>
+        </div>`;
+      };
+      dirEl.innerHTML = `<div style="display:flex;gap:8px">
+        ${card('LONG signals', lw, ll, lWR, lPnl, 'var(--green)')}
+        ${card('SHORT signals', sw, sl, sWR, sPnl, 'var(--red)')}
+      </div>`;
+    }
+  }
+
   // Trade history dots — rebuild from actual calendar results in day order
   const th = document.getElementById('trade-history');
   if (th) {
@@ -602,10 +636,12 @@ function updateStats() {
     const days = Object.keys(cur).map(Number).sort((a,b) => a - b);
     days.forEach(d => {
       const r = cur[d];
-      if (r === 'win' || r === 'loss') {
+      const isW = r === 'win' || r === 'lw' || r === 'sw';
+      const isL = r === 'loss' || r === 'll' || r === 'sl';
+      if (isW || isL) {
         const dot = document.createElement('div');
-        dot.className = 'th-dot ' + (r === 'win' ? 'w' : 'l');
-        dot.textContent = r === 'win' ? 'W' : 'L';
+        dot.className = 'th-dot ' + (isW ? 'w' : 'l');
+        dot.textContent = isW ? 'W' : 'L';
         th.appendChild(dot);
       }
     });
@@ -640,19 +676,31 @@ function buildCalendar() {
     el.className = 'cal-day';
     el.textContent = d;
     el.onclick = () => cycleDay(d);
+    const v = r[d];
+    const isWin  = v === 'win' || v === 'lw' || v === 'sw';
+    const isLoss = v === 'loss' || v === 'll' || v === 'sl';
+    const dirLabel = (v === 'lw' || v === 'll') ? 'L' : (v === 'sw' || v === 'sl') ? 'S' : '';
     if (isCurrentMonth && d === TODAY_DAY) el.classList.add('today');
-    else if (r[d] === 'win')  el.classList.add('win');
-    else if (r[d] === 'loss') el.classList.add('loss');
+    else if (isWin)  el.classList.add('win');
+    else if (isLoss) el.classList.add('loss');
     else if (isCurrentMonth && d > TODAY_DAY) el.classList.add('future');
+    el.innerHTML = d + (dirLabel ? `<span class="dir-badge">${dirLabel}</span>` : '');
     grid.appendChild(el);
   }
 }
 
 function cycleDay(d) {
   const r = getCalResults();
-  if (!r[d]) r[d] = 'win';
-  else if (r[d] === 'win') r[d] = 'loss';
-  else delete r[d];
+  const cur = r[d];
+  // Cycle: empty → lw (long win) → ll (long loss) → sw (short win) → sl (short loss) → empty
+  // Backward compat: old 'win' continues from lw, old 'loss' continues from ll
+  if (!cur)              r[d] = 'lw';
+  else if (cur === 'lw') r[d] = 'll';
+  else if (cur === 'll') r[d] = 'sw';
+  else if (cur === 'sw') r[d] = 'sl';
+  else if (cur === 'win')  r[d] = 'll';  // old win → long loss next
+  else if (cur === 'loss') r[d] = 'sw';  // old loss → short win next
+  else delete r[d];                       // sl or anything else → clear
   setCalResults(r);
   buildCalendar();
   updateStats();
