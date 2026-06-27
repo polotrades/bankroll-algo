@@ -477,14 +477,32 @@ const MONTH_NAMES = ['January','February','March','April','May','June','July','A
 function monthKey(sess, y, m) {
   return `ba_res_${sess}_${y}_${String(m+1).padStart(2,'0')}`;
 }
+function migrateToDirectional(data) {
+  let changed = false;
+  for (const k of Object.keys(data)) {
+    if (data[k] === 'win')  { data[k] = 'lw'; changed = true; }
+    if (data[k] === 'loss') { data[k] = 'll'; changed = true; }
+  }
+  return { data, changed };
+}
 function loadMonthData(sess, y, m) {
   try {
     const raw = localStorage.getItem(monthKey(sess, y, m));
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      let data = JSON.parse(raw);
+      const { data: migrated, changed } = migrateToDirectional(data);
+      if (changed) localStorage.setItem(monthKey(sess, y, m), JSON.stringify(migrated));
+      return migrated;
+    }
     // Migrate old single-key data into current month slot on first load
     if (y === TODAY_YEAR && m === TODAY_MONTH) {
       const old = localStorage.getItem(sess === 'asia' ? STORAGE_KEY_ASIA : STORAGE_KEY_NY);
-      if (old) { localStorage.setItem(monthKey(sess, y, m), old); return JSON.parse(old); }
+      if (old) {
+        let data = JSON.parse(old);
+        const { data: migrated } = migrateToDirectional(data);
+        localStorage.setItem(monthKey(sess, y, m), JSON.stringify(migrated));
+        return migrated;
+      }
     }
     return {};
   } catch { return {}; }
@@ -628,6 +646,16 @@ function updateStats() {
     }
   }
 
+  // Header month label
+  const perfLabel = document.getElementById('perf-month-label');
+  if (perfLabel) {
+    const mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    perfLabel.textContent = mn[TODAY_MONTH] + ' ' + TODAY_YEAR + ' Performance';
+  }
+
+  // Day win rate card
+  buildDayWinRate();
+
   // Trade history dots — rebuild from actual calendar results in day order
   const th = document.getElementById('trade-history');
   if (th) {
@@ -646,6 +674,99 @@ function updateStats() {
       }
     });
   }
+}
+
+function buildDayWinRate() {
+  const el = document.getElementById('day-wr');
+  const dateEl = document.getElementById('day-wr-date');
+  if (!el) return;
+
+  const isAsia = currentSession === 'asia';
+  const sess   = isAsia ? 'asia' : 'ny';
+
+  // Asia: Sun(0) Mon(1) Tue(2) Wed(3) Thu(4)  — skip Fri(5) Sat(6)
+  // NY:   Mon(1) Tue(2) Wed(3) Thu(4) Fri(5)  — skip Sun(0) Sat(6)
+  const dayNames = isAsia ? ['Sun','Mon','Tue','Wed','Thu'] : ['Mon','Tue','Wed','Thu','Fri'];
+  const tally = Array.from({length: 5}, () => ({w:0, l:0}));
+
+  function dowToIdx(dow) {
+    if (isAsia) {
+      // Sun=0→0, Mon=1→1, Tue=2→2, Wed=3→3, Thu=4→4, Fri/Sat→-1
+      return dow <= 4 ? dow : -1;
+    } else {
+      // Mon=1→0, Tue=2→1, Wed=3→2, Thu=4→3, Fri=5→4, Sun/Sat→-1
+      return (dow >= 1 && dow <= 5) ? dow - 1 : -1;
+    }
+  }
+
+  const now = new Date();
+  for (let y = 2026; y <= now.getFullYear(); y++) {
+    const endM = (y === now.getFullYear()) ? now.getMonth() : 11;
+    for (let m = 0; m <= endM; m++) {
+      const data = loadMonthData(sess, y, m);
+      for (const [dayStr, val] of Object.entries(data)) {
+        const d   = parseInt(dayStr);
+        const dow = new Date(y, m, d).getDay(); // 0=Sun … 6=Sat
+        const idx = dowToIdx(dow);
+        if (idx === -1) continue;
+        const isW = val === 'win' || val === 'lw' || val === 'sw';
+        const isL = val === 'loss' || val === 'll' || val === 'sl';
+        if (isW) tally[idx].w++;
+        else if (isL) tally[idx].l++;
+      }
+    }
+  }
+
+  const total = tally.reduce((s,t) => s + t.w + t.l, 0);
+
+  if (dateEl) {
+    dateEl.textContent = 'As of ' + now.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+  }
+
+  if (total === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px">No data yet — log trades in the calendar.</div>`;
+    return;
+  }
+
+  let bestIdx = -1, bestWR = -1, worstIdx = -1, worstWR = 101;
+  tally.forEach((t, i) => {
+    const tot = t.w + t.l;
+    if (tot === 0) return;
+    const wr = t.w / tot * 100;
+    if (wr > bestWR)  { bestWR = wr;  bestIdx = i; }
+    if (wr < worstWR) { worstWR = wr; worstIdx = i; }
+  });
+
+  const rows = dayNames.map((name, i) => {
+    const t = tally[i];
+    const tot = t.w + t.l;
+    if (tot === 0) {
+      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:11px;font-weight:600;color:var(--text-muted);width:28px">${name}</span>
+        <div style="flex:1;height:20px;background:var(--surface-2);border-radius:6px;"></div>
+        <span style="font-size:10px;color:var(--text-muted);width:44px;text-align:right">—</span>
+      </div>`;
+    }
+    const wr = t.w / tot * 100;
+    const color   = wr >= 70 ? 'var(--green)' : wr >= 55 ? 'var(--gold)' : 'var(--red)';
+    const bgColor = wr >= 70 ? 'rgba(23,160,106,0.2)' : wr >= 55 ? 'rgba(196,151,60,0.18)' : 'rgba(201,64,64,0.15)';
+    const badge = i === bestIdx
+      ? `<span style="font-size:8px;font-weight:700;background:rgba(23,160,106,0.15);color:var(--green);padding:1px 5px;border-radius:4px;margin-left:4px">BEST</span>`
+      : (i === worstIdx && bestIdx !== worstIdx)
+        ? `<span style="font-size:8px;font-weight:700;background:rgba(201,64,64,0.12);color:var(--red);padding:1px 5px;border-radius:4px;margin-left:4px">WATCH</span>`
+        : '';
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:600;color:var(--text-muted);width:28px">${name}</span>
+      <div style="flex:1;height:20px;background:var(--surface-2);border-radius:6px;overflow:hidden;position:relative">
+        <div style="height:100%;width:${Math.round(wr)}%;background:${bgColor};border-radius:6px"></div>
+        <span style="position:absolute;right:7px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:${color}">${Math.round(wr)}%</span>
+      </div>
+      <span style="font-size:10px;color:var(--text-muted);width:44px;text-align:right">${t.w}W ${t.l}L</span>
+      ${badge}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = rows + `<div style="border-top:0.5px solid var(--border);padding-top:8px;margin-top:2px;font-size:10px;color:var(--text-muted);text-align:center">${total} trades logged</div>`;
 }
 
 function buildCalendar() {
@@ -698,9 +819,7 @@ function cycleDay(d) {
   else if (cur === 'lw') r[d] = 'll';
   else if (cur === 'll') r[d] = 'sw';
   else if (cur === 'sw') r[d] = 'sl';
-  else if (cur === 'win')  r[d] = 'll';  // old win → long loss next
-  else if (cur === 'loss') r[d] = 'sw';  // old loss → short win next
-  else delete r[d];                       // sl or anything else → clear
+  else delete r[d];
   setCalResults(r);
   buildCalendar();
   updateStats();

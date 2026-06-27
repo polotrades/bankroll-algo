@@ -47,7 +47,7 @@
       <div class="header-sub">S&P 500 · Daily Signal</div>
     </div>
     <div class="header-perf">
-      <div class="perf-label">June 2026 Performance</div>
+      <div class="perf-label" id="perf-month-label">June 2026 Performance</div>
       <div class="perf-badges">
         <span class="badge-w" id="w-badge">2W</span>
         <span class="badge-l" id="l-badge">1L</span>
@@ -276,6 +276,11 @@
       <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Tap calendar days to cycle: Long Win → Long Loss → Short Win → Short Loss → Clear</div>
       <div id="dir-breakdown"></div>
     </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-label">Win Rate by Day</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px" id="day-wr-date"></div>
+      <div id="day-wr"></div>
+    </div>
     <div class="card" style="margin-top:16px">
       <div class="card-label">Trade History</div>
       <div class="trade-history" id="trade-history"></div>
@@ -331,6 +336,6 @@
 
 </div>
 
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>
