@@ -289,6 +289,30 @@
 
   <!-- ===== MARKET DATA TAB ===== -->
   <div id="tab-market" class="tab-content">
+
+    <!-- Asia Indicators -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-label">Asia Indicators</div>
+      <div class="market-live-row" style="margin-bottom:12px">
+        <div class="live-yahoo"><div class="dot"></div>Live · Yahoo Finance</div>
+        <span style="font-size:10px;color:var(--text-muted)">For Asia 3pm PT open</span>
+      </div>
+      <div class="market-grid-2" id="asia-indices">
+        <div class="market-card" id="nikkei-card">
+          <div class="market-card-label">Nikkei 225 <span style="font-size:9px;color:var(--text-muted)">^N225</span></div>
+          <div style="font-size:20px;font-weight:600;color:var(--text-primary)" id="nikkei-price">—</div>
+          <div style="font-size:12px;font-weight:600;margin-top:2px" id="nikkei-chg">Loading...</div>
+          <div style="margin-top:6px" id="nikkei-badge"></div>
+        </div>
+        <div class="market-card" id="hsi-card">
+          <div class="market-card-label">Hang Seng <span style="font-size:9px;color:var(--text-muted)">^HSI</span></div>
+          <div style="font-size:20px;font-weight:600;color:var(--text-primary)" id="hsi-price">—</div>
+          <div style="font-size:12px;font-weight:600;margin-top:2px" id="hsi-chg">Loading...</div>
+          <div style="margin-top:6px" id="hsi-badge"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="market-live-row">
         <div class="live-yahoo"><div class="dot"></div>Live · Yahoo Finance</div>
@@ -336,6 +360,6 @@
 
 </div>
 
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

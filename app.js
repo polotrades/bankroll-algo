@@ -883,11 +883,44 @@ journalEntries.forEach(e => {
   </div>`;
 });
 
+// ── Asia Indices (Nikkei + Hang Seng) ────────────────────────────────────
+async function loadAsiaIndices() {
+  const indices = [
+    { symbol: '%5EN225', priceId: 'nikkei-price', chgId: 'nikkei-chg', badgeId: 'nikkei-badge', cardId: 'nikkei-card' },
+    { symbol: '%5EHSI',  priceId: 'hsi-price',    chgId: 'hsi-chg',    badgeId: 'hsi-badge',    cardId: 'hsi-card'    }
+  ];
+  for (const idx of indices) {
+    try {
+      const res  = await fetch(`/api/get-index?symbol=${idx.symbol}`);
+      const data = await res.json();
+      if (!data || data.error) continue;
+      const price = data.price;
+      const chg   = data.changePercent;
+      const isUp  = chg >= 0;
+      const color = isUp ? 'var(--green)' : 'var(--red)';
+      const card  = document.getElementById(idx.cardId);
+      if (card) {
+        card.style.background    = isUp ? 'rgba(23,160,106,0.05)' : 'rgba(201,64,64,0.05)';
+        card.style.borderColor   = isUp ? 'rgba(23,160,106,0.2)'  : 'rgba(201,64,64,0.2)';
+      }
+      const priceEl = document.getElementById(idx.priceId);
+      if (priceEl) { priceEl.textContent = price.toLocaleString(undefined, {maximumFractionDigits:0}); priceEl.style.color = color; }
+      const chgEl = document.getElementById(idx.chgId);
+      if (chgEl) { chgEl.textContent = (isUp ? '▲ +' : '▼ ') + chg.toFixed(2) + '%'; chgEl.style.color = color; }
+      const badgeEl = document.getElementById(idx.badgeId);
+      if (badgeEl) {
+        badgeEl.innerHTML = `<span style="display:inline-block;font-size:8px;font-weight:700;padding:2px 6px;border-radius:4px;letter-spacing:.05em;background:${isUp?'rgba(23,160,106,0.15)':'rgba(201,64,64,0.15)'};color:${color}">${isUp?'BULL POINT':'BEAR POINT'}</span>`;
+      }
+    } catch(e) { console.warn('Asia index fetch failed:', e); }
+  }
+}
+
 // ── Charts ────────────────────────────────────────────────────────────────
 let chartsBuilt = false;
 function initCharts() {
   if (chartsBuilt) return;
   chartsBuilt = true;
+  loadAsiaIndices();
   const labels = ['18:00','18:15','18:30','18:45','19:00','19:15','19:30','19:45'];
   const priceCtx = document.getElementById('priceChart').getContext('2d');
   new Chart(priceCtx, {
