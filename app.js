@@ -1,7 +1,7 @@
 // ── Bankroll Algo v2 · app.js ─────────────────────────────────────────────
 
 // ── Session ───────────────────────────────────────────────────────────────
-let currentSession = localStorage.getItem('ba_session') || 'ny'; // ny | asia
+let currentSession = localStorage.getItem('ba_session') || 'ny'; // ny | london | asia
 
 function buildBacktestCard(sess = 'ny') {
   const TP_USD = 450;
@@ -25,8 +25,10 @@ function buildBacktestCard(sess = 'ny') {
     let mW = 0, mL = 0, mPnl = 0;
     for (const day of Object.keys(dayMap).map(Number).sort((a,b)=>a-b)) {
       const v = dayMap[String(day)];
-      if (v === 'win')  { mW++; mPnl += TP_USD; allTrades.push('win'); }
-      else if (v === 'loss') { mL++; mPnl -= SL_USD; allTrades.push('loss'); }
+      const isW = v === 'win' || v === 'lw' || v === 'sw';
+      const isL = v === 'loss' || v === 'll' || v === 'sl';
+      if (isW)  { mW++; mPnl += TP_USD; allTrades.push('win'); }
+      else if (isL) { mL++; mPnl -= SL_USD; allTrades.push('loss'); }
     }
     if (mW + mL === 0) continue;
     totalW += mW; totalL += mL; totalPnl += mPnl;
@@ -101,25 +103,24 @@ function buildBacktestCard(sess = 'ny') {
 }
 
 function applyBacktestUI(sess) {
-  const btNY   = document.getElementById('bt-ny');
-  const btAsia = document.getElementById('bt-asia');
-  if (!btNY || !btAsia) return;
-  btNY.style.display   = sess === 'ny'   ? 'block' : 'none';
-  btAsia.style.display = sess === 'asia' ? 'block' : 'none';
+  const btNY     = document.getElementById('bt-ny');
+  const btLondon = document.getElementById('bt-london');
+  const btAsia   = document.getElementById('bt-asia');
+  if (btNY)     btNY.style.display     = sess === 'ny'     ? 'block' : 'none';
+  if (btLondon) btLondon.style.display = sess === 'london' ? 'block' : 'none';
+  if (btAsia)   btAsia.style.display   = sess === 'asia'   ? 'block' : 'none';
 }
 
 function applySessionUI(sess) {
-  const nyBtn   = document.getElementById('sess-ny');
-  const asiaBtn = document.getElementById('sess-asia');
-  if (!nyBtn || !asiaBtn) return;
+  const nyBtn     = document.getElementById('sess-ny');
+  const londonBtn = document.getElementById('sess-london');
+  const asiaBtn   = document.getElementById('sess-asia');
   const base = 'flex:1;padding:9px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em';
-  if (sess === 'ny') {
-    nyBtn.style.cssText   = base + ';background:var(--purple,#6B5FD0);color:#fff';
-    asiaBtn.style.cssText = base + ';background:transparent;color:var(--text-muted,#52526A)';
-  } else {
-    asiaBtn.style.cssText = base + ';background:var(--purple,#6B5FD0);color:#fff';
-    nyBtn.style.cssText   = base + ';background:transparent;color:var(--text-muted,#52526A)';
-  }
+  const active   = base + ';background:var(--purple,#6B5FD0);color:#fff';
+  const inactive = base + ';background:transparent;color:var(--text-muted,#52526A)';
+  if (nyBtn)     nyBtn.style.cssText     = sess === 'ny'     ? active : inactive;
+  if (londonBtn) londonBtn.style.cssText = sess === 'london' ? active : inactive;
+  if (asiaBtn)   asiaBtn.style.cssText   = sess === 'asia'   ? active : inactive;
 }
 
 function switchSession(sess) {
@@ -219,7 +220,9 @@ document.getElementById('today-date').textContent = new Date().toLocaleDateStrin
 
 // ── Load today's signal from API ──────────────────────────────────────────
 async function loadSignal() {
-  const endpoint = currentSession === 'asia' ? '/api/get-asia-signal' : '/api/get-signal';
+  const endpoint = currentSession === 'asia' ? '/api/get-asia-signal'
+                 : currentSession === 'london' ? '/api/get-london-signal'
+                 : '/api/get-signal';
   try {
     const res = await fetch(endpoint + '?t=' + Date.now(), { cache: 'no-store' });
     const data = await res.json();
@@ -319,6 +322,8 @@ function populateSignal(signal) {
   if (entryEl) {
     if (signal.session === 'Asia') {
       entryEl.textContent = signal.entry_range ? `Asia Open · ${signal.entry_range}` : 'Asia Market Open';
+    } else if (signal.session === 'London') {
+      entryEl.textContent = signal.entry_range ? `London Open · ${signal.entry_range}` : 'London Open · 8:00 UTC';
     } else {
       entryEl.textContent = 'NYSE Market Open';
     }
@@ -329,7 +334,7 @@ function populateSignal(signal) {
     const t = new Date(signal.generated_at).toLocaleTimeString('en-US', {
       hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles', timeZoneName: 'short'
     });
-    const sess = signal.session === 'Asia' ? ' · Asia' : ' · NY';
+    const sess = signal.session === 'Asia' ? ' · Asia' : signal.session === 'London' ? ' · London' : ' · NY';
     document.getElementById('signal-time').textContent = `Generated at ${t}${sess}`;
   }
 
@@ -405,8 +410,12 @@ async function adminRegenerateSignal() {
   btn.disabled = true;
 
   const adminPw = localStorage.getItem('ba_admin_key') || '';
-  const regenEndpoint = currentSession === 'asia' ? '/api/generate-asia-signal' : '/api/generate-signal';
-  const getEndpoint   = currentSession === 'asia' ? '/api/get-asia-signal'     : '/api/get-signal';
+  const regenEndpoint = currentSession === 'asia' ? '/api/generate-asia-signal'
+                      : currentSession === 'london' ? '/api/generate-london-signal'
+                      : '/api/generate-signal';
+  const getEndpoint   = currentSession === 'asia' ? '/api/get-asia-signal'
+                      : currentSession === 'london' ? '/api/get-london-signal'
+                      : '/api/get-signal';
 
   // Track whether the regenerate call itself succeeded, so we can show
   // the REAL reason on failure instead of silently doing nothing.
@@ -463,8 +472,9 @@ async function adminRegenerateSignal() {
 }
 
 // ── Calendar ──────────────────────────────────────────────────────────────
-const STORAGE_KEY_NY   = 'bankroll_algo_results_ny';
-const STORAGE_KEY_ASIA = 'bankroll_algo_results_asia';
+const STORAGE_KEY_NY     = 'bankroll_algo_results_ny';
+const STORAGE_KEY_LONDON = 'bankroll_algo_results_london';
+const STORAGE_KEY_ASIA   = 'bankroll_algo_results_asia';
 const _NOW        = new Date();
 const TODAY_DAY   = _NOW.getDate();
 const TODAY_MONTH = _NOW.getMonth();
@@ -496,7 +506,8 @@ function loadMonthData(sess, y, m) {
     }
     // Migrate old single-key data into current month slot on first load
     if (y === TODAY_YEAR && m === TODAY_MONTH) {
-      const old = localStorage.getItem(sess === 'asia' ? STORAGE_KEY_ASIA : STORAGE_KEY_NY);
+      const oldKey = sess === 'asia' ? STORAGE_KEY_ASIA : sess === 'london' ? STORAGE_KEY_LONDON : STORAGE_KEY_NY;
+      const old = localStorage.getItem(oldKey);
       if (old) {
         let data = JSON.parse(old);
         const { data: migrated } = migrateToDirectional(data);
@@ -510,21 +521,20 @@ function loadMonthData(sess, y, m) {
 function saveMonthData(sess, y, m, r) {
   try {
     localStorage.setItem(monthKey(sess, y, m), JSON.stringify(r));
-    // Keep old keys in sync for current month (backward compat)
+    // Keep old single-key in sync for current month (backward compat)
     if (y === TODAY_YEAR && m === TODAY_MONTH) {
-      localStorage.setItem(sess === 'asia' ? STORAGE_KEY_ASIA : STORAGE_KEY_NY, JSON.stringify(r));
+      const oldKey = sess === 'asia' ? STORAGE_KEY_ASIA : sess === 'london' ? STORAGE_KEY_LONDON : STORAGE_KEY_NY;
+      localStorage.setItem(oldKey, JSON.stringify(r));
     }
   } catch {}
 }
 
 // Calendar-view results (the month currently displayed)
 function getCalResults() {
-  const sess = currentSession === 'asia' ? 'asia' : 'ny';
-  return loadMonthData(sess, calViewYear, calViewMonth);
+  return loadMonthData(currentSession, calViewYear, calViewMonth);
 }
 function setCalResults(r) {
-  const sess = currentSession === 'asia' ? 'asia' : 'ny';
-  saveMonthData(sess, calViewYear, calViewMonth, r);
+  saveMonthData(currentSession, calViewYear, calViewMonth, r);
   // Sync in-memory + Redis only when editing the current month
   if (calViewYear === TODAY_YEAR && calViewMonth === TODAY_MONTH) {
     setResults(r);
@@ -540,7 +550,9 @@ function calNav(dir) {
 }
 
 function getStorageKey() {
-  return currentSession === 'asia' ? STORAGE_KEY_ASIA : STORAGE_KEY_NY;
+  if (currentSession === 'asia')   return STORAGE_KEY_ASIA;
+  if (currentSession === 'london') return STORAGE_KEY_LONDON;
+  return STORAGE_KEY_NY;
 }
 
 function loadResults(key) {
@@ -549,6 +561,10 @@ function loadResults(key) {
 }
 function saveResults(r) {
   try { localStorage.setItem(getStorageKey(), JSON.stringify(r)); } catch {}
+  // Keep old single-key in sync for ny and asia (backward compat)
+  if (currentSession === 'london') {
+    try { localStorage.setItem(STORAGE_KEY_LONDON, JSON.stringify(r)); } catch {}
+  }
   fetch('/api/save-results', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -564,14 +580,18 @@ async function fetchResultsFromRedis(sess) {
   } catch { return {}; }
 }
 
-let nyResults   = loadResults(STORAGE_KEY_NY);
-let asiaResults = loadResults(STORAGE_KEY_ASIA);
+let nyResults     = loadResults(STORAGE_KEY_NY);
+let londonResults = loadResults(STORAGE_KEY_LONDON);
+let asiaResults   = loadResults(STORAGE_KEY_ASIA);
 
 function getResults() {
-  return currentSession === 'asia' ? asiaResults : nyResults;
+  if (currentSession === 'asia')   return asiaResults;
+  if (currentSession === 'london') return londonResults;
+  return nyResults;
 }
 function setResults(r) {
-  if (currentSession === 'asia') asiaResults = r;
+  if (currentSession === 'asia')   asiaResults   = r;
+  else if (currentSession === 'london') londonResults = r;
   else nyResults = r;
 }
 
@@ -681,11 +701,12 @@ function buildDayWinRate() {
   const dateEl = document.getElementById('day-wr-date');
   if (!el) return;
 
-  const isAsia = currentSession === 'asia';
-  const sess   = isAsia ? 'asia' : 'ny';
+  const isAsia   = currentSession === 'asia';
+  const isLondon = currentSession === 'london';
+  const sess = currentSession;
 
-  // Asia: Sun(0) Mon(1) Tue(2) Wed(3) Thu(4)  — skip Fri(5) Sat(6)
-  // NY:   Mon(1) Tue(2) Wed(3) Thu(4) Fri(5)  — skip Sun(0) Sat(6)
+  // Asia:   Sun(0) Mon(1) Tue(2) Wed(3) Thu(4)  — skip Fri(5) Sat(6)
+  // NY/London: Mon(1) Tue(2) Wed(3) Thu(4) Fri(5) — skip Sun(0) Sat(6)
   const dayNames = isAsia ? ['Sun','Mon','Tue','Wed','Thu'] : ['Mon','Tue','Wed','Thu','Fri'];
   const tally = Array.from({length: 5}, () => ({w:0, l:0}));
 
@@ -824,6 +845,7 @@ function cycleDay(d) {
   buildCalendar();
   updateStats();
   buildBacktestCard('ny');
+  buildBacktestCard('london');
   buildBacktestCard('asia');
 }
 
@@ -951,16 +973,19 @@ applyBacktestUI(currentSession);
 buildCalendar();
 updateStats();
 buildBacktestCard('ny');
+buildBacktestCard('london');
 buildBacktestCard('asia');
 loadSignal();
 
 // Load real results from Redis (syncs phone + desktop)
 Promise.all([
   fetchResultsFromRedis('ny'),
+  fetchResultsFromRedis('london'),
   fetchResultsFromRedis('asia')
-]).then(([ny, asia]) => {
-  if (Object.keys(ny).length)   { nyResults   = ny;   localStorage.setItem(STORAGE_KEY_NY,   JSON.stringify(ny));   }
-  if (Object.keys(asia).length) { asiaResults = asia; localStorage.setItem(STORAGE_KEY_ASIA, JSON.stringify(asia)); }
+]).then(([ny, london, asia]) => {
+  if (Object.keys(ny).length)     { nyResults     = ny;     localStorage.setItem(STORAGE_KEY_NY,     JSON.stringify(ny));     }
+  if (Object.keys(london).length) { londonResults = london; localStorage.setItem(STORAGE_KEY_LONDON, JSON.stringify(london)); }
+  if (Object.keys(asia).length)   { asiaResults   = asia;   localStorage.setItem(STORAGE_KEY_ASIA,   JSON.stringify(asia));   }
   buildCalendar();
   updateStats();
 });
