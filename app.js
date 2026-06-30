@@ -407,8 +407,13 @@ function renderSpyOptions(signal) {
 
 // ── Admin: regenerate signal manually ────────────────────────────────────
 async function adminRegenerateSignal() {
-  const btn = document.getElementById('regen-btn') || document.getElementById('regen-btn-empty');
-  const txt = document.getElementById('regen-btn-text') || document.getElementById('regen-btn-empty-text');
+  // Use whichever regen button is currently visible
+  const btnMain  = document.getElementById('regen-btn');
+  const btnEmpty = document.getElementById('regen-btn-empty');
+  const btn = (btnEmpty && btnEmpty.offsetParent !== null) ? btnEmpty : btnMain;
+  const txtId = (btn && btn.id === 'regen-btn-empty') ? 'regen-btn-empty-text' : 'regen-btn-text';
+  const txt = document.getElementById(txtId);
+  if (!btn) return;
   btn.disabled = true;
 
   const adminPw = localStorage.getItem('ba_admin_key') || '';
