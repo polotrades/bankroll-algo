@@ -189,6 +189,8 @@ function applyRole() {
     badge.className = 'access-badge admin';
     badge.innerHTML = '<i class="ti ti-shield-check"></i> Admin Access';
     document.getElementById('admin-panel').style.display = 'block';
+    const emptyAdmin = document.getElementById('admin-panel-empty');
+    if (emptyAdmin) emptyAdmin.style.display = 'block';
   } else if (userRole === 'member') {
     body.classList.add('unlocked');
     banner.classList.add('hidden');
@@ -405,8 +407,8 @@ function renderSpyOptions(signal) {
 
 // ── Admin: regenerate signal manually ────────────────────────────────────
 async function adminRegenerateSignal() {
-  const btn = document.getElementById('regen-btn');
-  const txt = document.getElementById('regen-btn-text');
+  const btn = document.getElementById('regen-btn') || document.getElementById('regen-btn-empty');
+  const txt = document.getElementById('regen-btn-text') || document.getElementById('regen-btn-empty-text');
   btn.disabled = true;
 
   const adminPw = localStorage.getItem('ba_admin_key') || '';
