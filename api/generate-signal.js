@@ -203,13 +203,17 @@ export default async function handler(req, res) {
           const comp = bull > bear + 1 ? `Bullish (${bull}/${tot} align)`
                      : bear > bull + 1 ? `Bearish (${bear}/${tot} align)`
                      : 'Conflicting — low conviction';
-          // ── Conviction-gap filter (from 60-day backtest analysis) ──────
-          // Gap of 2-3 backtested at 48% win rate (below 55% breakeven) — skip these.
-          // Gap of 0-1 or 4-5 backtested at 72-78% win rate — trade these.
+          // ── Conviction-gap filter (86-trade backtest, updated Jul 2026) ─
+          // Gap → historical win rate:
+          //   0→29%  1→70%  2→55%  3→57%  4→56%  5→47%
+          // Skip gap 0 (28.6% WR, random) and gap 5 (47% WR, below breakeven).
+          // Trade gap 1-4 (all ≥55% WR, positive EV at 9pt TP / 11pt SL).
+          const GAP_WIN_RATES = { 0: 29, 1: 70, 2: 55, 3: 57, 4: 56, 5: 47 };
           ctx.bull_score = bull;
           ctx.bear_score = bear;
           ctx.conviction_gap = Math.abs(bull - bear);
-          ctx.no_trade = ctx.conviction_gap === 2 || ctx.conviction_gap === 3;
+          ctx.hit_rate = GAP_WIN_RATES[ctx.conviction_gap] ?? 50;
+          ctx.no_trade = ctx.conviction_gap === 0 || ctx.conviction_gap === 5;
           // Store structured confluences on ctx for frontend display
           ctx.confluences = [
             { label: 'Overnight Trend',   value: oTrend },
@@ -258,32 +262,13 @@ export default async function handler(req, res) {
     const autoDir  = biasComp.startsWith('Bearish') ? 'SHORT' : 'LONG';
     const autoBias = autoDir === 'LONG' ? 'Bullish' : 'Bearish';
 
-    // ── 3. Call Claude — ONLY for confidence level (tiny output = fast) ────
-    const compLine = confluenceLines.find(l => l.includes('Bias Composite')) || '';
-    const claudeRes = await fetchT('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 20,
-        messages: [{
-          role: 'user',
-          content: `ES Futures NYSE open signal. ${compLine}. Rate confidence: High (5+ align), Medium (3-4), Low (<3). Reply ONLY one word: High, Medium, or Low.`
-        }]
-      })
-    }, 3500);
-
-    let confidence = 'Medium';
-    try {
-      const claudeData = await claudeRes.json();
-      const raw = (claudeData.content?.[0]?.text || '').trim();
-      if (raw.startsWith('High')) confidence = 'High';
-      else if (raw.startsWith('Low')) confidence = 'Low';
-    } catch(e) { /* use default Medium */ }
+    // ── 3. Confidence from conviction gap — data-driven, no API call needed ─
+    // Gap 1 = 70% WR (High), Gap 2-4 = 55-57% WR (Medium), Gap 0/5 = no-trade (Low)
+    const gap = ctx.conviction_gap ?? 2;
+    let confidence;
+    if (gap === 1)                    confidence = 'High';    // 70% WR
+    else if (gap >= 2 && gap <= 4)   confidence = 'Medium';  // 55-57% WR
+    else                              confidence = 'Low';     // gap 0/5 → no-trade
 
     // ── 4. Build signal — everything calculated server-side ───────────────
     const price  = livePrice || 5800;
@@ -298,9 +283,12 @@ export default async function handler(req, res) {
       rr_ratio:    '1:1',
       rr_target:   '+$450',
       rr_risk:     '-$550',
+      hit_rate:        ctx.hit_rate ?? 50,
       no_trade:        !!ctx.no_trade,
       no_trade_reason: ctx.no_trade
-        ? `Moderate-conviction zone (${ctx.bull_score}-${ctx.bear_score} confluence split) — backtested at 48% win rate, below breakeven. Skipping this setup.`
+        ? ctx.conviction_gap === 0
+          ? `Tied signal (${ctx.bull_score}/${ctx.bear_score} split) — backtested at 29% win rate. No edge, skip today.`
+          : `Max-skew signal (gap ${ctx.conviction_gap}) — backtested at 47% win rate, below breakeven. Skip.`
         : null,
       market_context: ctx,
       generated_at:   new Date().toISOString(),

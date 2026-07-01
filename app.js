@@ -264,7 +264,8 @@ function populateSignal(signal) {
   biasEl.style.color = isLong ? '#0F6E56' : '#A32D2D';
 
   const confEl = document.getElementById('conf-lvl');
-  confEl.textContent = signal.confidence;
+  const hitRate = signal.hit_rate ?? (signal.confidence === 'High' ? 70 : signal.confidence === 'Medium' ? 56 : 29);
+  confEl.textContent = `${signal.confidence} · ${hitRate}% hit rate`;
   confEl.style.color = signal.confidence === 'High' ? '#534AB7' : signal.confidence === 'Medium' ? '#854F0B' : '#A32D2D';
 
   // No-trade banner — moderate-conviction filter OR low confidence, signal still shows for reference
@@ -486,6 +487,7 @@ const _NOW        = new Date();
 const TODAY_DAY   = _NOW.getDate();
 const TODAY_MONTH = _NOW.getMonth();
 const TODAY_YEAR  = _NOW.getFullYear();
+const CUR_YM      = `${TODAY_YEAR}-${String(TODAY_MONTH+1).padStart(2,'0')}`;
 let calViewYear   = TODAY_YEAR;
 let calViewMonth  = TODAY_MONTH;
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -511,30 +513,36 @@ function loadMonthData(sess, y, m) {
       if (changed) localStorage.setItem(monthKey(sess, y, m), JSON.stringify(migrated));
       return migrated;
     }
-    // Migrate old single-key data into current month slot on first load
-    if (y === TODAY_YEAR && m === TODAY_MONTH) {
-      const oldKey = sess === 'asia' ? STORAGE_KEY_ASIA : sess === 'london' ? STORAGE_KEY_LONDON : STORAGE_KEY_NY;
-      const old = localStorage.getItem(oldKey);
-      if (old) {
-        let data = JSON.parse(old);
-        const { data: migrated } = migrateToDirectional(data);
-        localStorage.setItem(monthKey(sess, y, m), JSON.stringify(migrated));
-        return migrated;
-      }
-    }
     return {};
   } catch { return {}; }
 }
 function saveMonthData(sess, y, m, r) {
   try {
     localStorage.setItem(monthKey(sess, y, m), JSON.stringify(r));
-    // Keep old single-key in sync for current month (backward compat)
-    if (y === TODAY_YEAR && m === TODAY_MONTH) {
-      const oldKey = sess === 'asia' ? STORAGE_KEY_ASIA : sess === 'london' ? STORAGE_KEY_LONDON : STORAGE_KEY_NY;
-      localStorage.setItem(oldKey, JSON.stringify(r));
-    }
   } catch {}
 }
+
+// Clear any old single-key data and wrongly migrated current-month data on startup
+(function cleanupOldKeys() {
+  const sessions = ['ny', 'asia', 'london'];
+  const oldKeys  = { ny: STORAGE_KEY_NY, london: STORAGE_KEY_LONDON, asia: STORAGE_KEY_ASIA };
+  sessions.forEach(sess => {
+    const oldKey = oldKeys[sess];
+    const curKey = monthKey(sess, TODAY_YEAR, TODAY_MONTH);
+    // Remove the old single key — no longer used
+    localStorage.removeItem(oldKey);
+    // If current month data has no _ym tag or wrong month — wrongly migrated, clear it
+    try {
+      const curRaw = localStorage.getItem(curKey);
+      if (curRaw) {
+        const curData = JSON.parse(curRaw);
+        if (!curData._ym || curData._ym !== CUR_YM) {
+          localStorage.removeItem(curKey);
+        }
+      }
+    } catch { localStorage.removeItem(curKey); }
+  });
+})();
 
 // Calendar-view results (the month currently displayed)
 function getCalResults() {
@@ -554,6 +562,7 @@ function calNav(dir) {
   if (calViewMonth < 0)  { calViewMonth = 11; calViewYear--; }
   if (calViewMonth > 11) { calViewMonth = 0;  calViewYear++; }
   buildCalendar();
+  updateStats();
 }
 
 function getStorageKey() {
@@ -567,15 +576,12 @@ function loadResults(key) {
   catch { return {}; }
 }
 function saveResults(r) {
-  try { localStorage.setItem(getStorageKey(), JSON.stringify(r)); } catch {}
-  // Keep old single-key in sync for ny and asia (backward compat)
-  if (currentSession === 'london') {
-    try { localStorage.setItem(STORAGE_KEY_LONDON, JSON.stringify(r)); } catch {}
-  }
+  // Tag with current month so Redis sync knows which month this data belongs to
+  const tagged = { ...r, _ym: CUR_YM };
   fetch('/api/save-results', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session: currentSession, results: r })
+    body: JSON.stringify({ session: currentSession, results: tagged })
   }).catch(() => {});
 }
 
@@ -587,19 +593,22 @@ async function fetchResultsFromRedis(sess) {
   } catch { return {}; }
 }
 
-let nyResults     = loadResults(STORAGE_KEY_NY);
-let londonResults = loadResults(STORAGE_KEY_LONDON);
-let asiaResults   = loadResults(STORAGE_KEY_ASIA);
+let nyResults     = loadMonthData('ny',     TODAY_YEAR, TODAY_MONTH);
+let londonResults = loadMonthData('london', TODAY_YEAR, TODAY_MONTH);
+let asiaResults   = loadMonthData('asia',   TODAY_YEAR, TODAY_MONTH);
 
 function getResults() {
-  if (currentSession === 'asia')   return asiaResults;
-  if (currentSession === 'london') return londonResults;
-  return nyResults;
+  const sess = currentSession === 'asia' ? 'asia' : currentSession === 'london' ? 'london' : 'ny';
+  return loadMonthData(sess, calViewYear, calViewMonth);
 }
 function setResults(r) {
-  if (currentSession === 'asia')   asiaResults   = r;
-  else if (currentSession === 'london') londonResults = r;
-  else nyResults = r;
+  const sess = currentSession === 'asia' ? 'asia' : currentSession === 'london' ? 'london' : 'ny';
+  saveMonthData(sess, calViewYear, calViewMonth, r);
+  if (calViewYear === TODAY_YEAR && calViewMonth === TODAY_MONTH) {
+    if (currentSession === 'asia') asiaResults = r;
+    else if (currentSession === 'london') londonResults = r;
+    else nyResults = r;
+  }
 }
 
 function getWins()   { return Object.values(getResults()).filter(v => v === 'win' || v === 'lw' || v === 'sw').length; }
@@ -985,14 +994,34 @@ buildBacktestCard('asia');
 loadSignal();
 
 // Load real results from Redis (syncs phone + desktop)
+// Only apply Redis data if it's tagged for the current month
 Promise.all([
   fetchResultsFromRedis('ny'),
   fetchResultsFromRedis('london'),
   fetchResultsFromRedis('asia')
 ]).then(([ny, london, asia]) => {
-  if (Object.keys(ny).length)     { nyResults     = ny;     localStorage.setItem(STORAGE_KEY_NY,     JSON.stringify(ny));     }
-  if (Object.keys(london).length) { londonResults = london; localStorage.setItem(STORAGE_KEY_LONDON, JSON.stringify(london)); }
-  if (Object.keys(asia).length)   { asiaResults   = asia;   localStorage.setItem(STORAGE_KEY_ASIA,   JSON.stringify(asia));   }
+  const apply = (data, setter, sess) => {
+    if (!Object.keys(data).length) return;
+    const { _ym, ...clean } = data;
+    if (_ym === CUR_YM) {
+      // Current month data — apply to memory + current month slot
+      setter(clean);
+      saveMonthData(sess, TODAY_YEAR, TODAY_MONTH, clean);
+    } else if (!_ym) {
+      // No tag = old data from before tagging was added → save to previous month
+      const prevMonth = TODAY_MONTH === 0 ? 11 : TODAY_MONTH - 1;
+      const prevYear  = TODAY_MONTH === 0 ? TODAY_YEAR - 1 : TODAY_YEAR;
+      const existing  = loadMonthData(sess, prevYear, prevMonth);
+      if (!Object.keys(existing).length) {
+        // Only restore if prev month is empty (don't overwrite real data)
+        saveMonthData(sess, prevYear, prevMonth, clean);
+      }
+    }
+    // Wrong _ym = skip entirely
+  };
+  apply(ny,     r => { nyResults     = r; }, 'ny');
+  apply(london, r => { londonResults = r; }, 'london');
+  apply(asia,   r => { asiaResults   = r; }, 'asia');
   buildCalendar();
   updateStats();
 });
