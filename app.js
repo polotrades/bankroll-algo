@@ -619,7 +619,34 @@ function getShortWins()   { return Object.values(getResults()).filter(v => v ===
 function getShortLosses() { return Object.values(getResults()).filter(v => v === 'sl').length; }
 
 function updateStats() {
-  const w = getWins(), l = getLosses(), total = w + l;
+  // If "All Time" filter is active, aggregate all months; otherwise use current calendar month
+  const activeFilter = document.querySelector('.mf-btn.active')?.textContent.trim() || '';
+  let w, l, lw, ll, sw, sl;
+  if (activeFilter === 'All Time') {
+    w = 0; l = 0; lw = 0; ll = 0; sw = 0; sl = 0;
+    const sess = currentSession === 'asia' ? 'asia' : currentSession === 'london' ? 'london' : 'ny';
+    const now = new Date();
+    for (let y = 2026; y <= now.getFullYear(); y++) {
+      const end = (y === now.getFullYear()) ? now.getMonth() : 11;
+      for (let m = 0; m <= end; m++) {
+        const key = `ba_res_${sess}_${y}_${String(m+1).padStart(2,'0')}`;
+        let dm; try { dm = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { continue; }
+        if (!dm) continue;
+        for (const v of Object.values(dm)) {
+          if (v === '_ym') continue;
+          if (v === 'win' || v === 'lw') { w++; lw++; }
+          else if (v === 'sw') { w++; sw++; }
+          else if (v === 'loss' || v === 'll') { l++; ll++; }
+          else if (v === 'sl') { l++; sl++; }
+        }
+      }
+    }
+  } else {
+    w = getWins(); l = getLosses();
+    lw = getLongWins(); ll = getLongLosses();
+    sw = getShortWins(); sl = getShortLosses();
+  }
+  const total = w + l;
   const pct = total > 0 ? Math.round(w / total * 100) : 0;
 
   // Header bar
@@ -652,8 +679,7 @@ function updateStats() {
     el('perf-pts').textContent   = (netPts >= 0 ? '+' : '') + netPts + ' pts';
   }
 
-  // Direction breakdown card
-  const lw = getLongWins(), ll = getLongLosses(), sw = getShortWins(), sl = getShortLosses();
+  // Direction breakdown card (lw/ll/sw/sl already set above)
   const lTotal = lw + ll, sTotal = sw + sl;
   const lWR = lTotal > 0 ? Math.round(lw / lTotal * 100) : null;
   const sWR = sTotal > 0 ? Math.round(sw / sTotal * 100) : null;
