@@ -718,14 +718,28 @@ function updateStats() {
   // Day win rate card
   buildDayWinRate();
 
-  // Trade history dots — rebuild from actual calendar results in day order
+  // Trade history dots — all months on "All Time", current month otherwise
   const th = document.getElementById('trade-history');
   if (th) {
     th.innerHTML = '';
-    const cur = getResults();
-    const days = Object.keys(cur).map(Number).sort((a,b) => a - b);
-    days.forEach(d => {
-      const r = cur[d];
+    const sess2 = currentSession === 'asia' ? 'asia' : currentSession === 'london' ? 'london' : 'ny';
+    const allVals = [];
+    if (activeFilter === 'All Time') {
+      const now2 = new Date();
+      for (let y = 2026; y <= now2.getFullYear(); y++) {
+        const end = (y === now2.getFullYear()) ? now2.getMonth() : 11;
+        for (let m = 0; m <= end; m++) {
+          const key = `ba_res_${sess2}_${y}_${String(m+1).padStart(2,'0')}`;
+          let dm; try { dm = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { continue; }
+          if (!dm) continue;
+          Object.keys(dm).filter(k => k !== '_ym').map(Number).filter(n => !isNaN(n)).sort((a,b)=>a-b).forEach(d => allVals.push(dm[String(d)]));
+        }
+      }
+    } else {
+      const cur = getResults();
+      Object.keys(cur).filter(k => k !== '_ym').map(Number).filter(n => !isNaN(n)).sort((a,b)=>a-b).forEach(d => allVals.push(cur[String(d)]));
+    }
+    allVals.forEach(r => {
       const isW = r === 'win' || r === 'lw' || r === 'sw';
       const isL = r === 'loss' || r === 'll' || r === 'sl';
       if (isW || isL) {
@@ -736,6 +750,9 @@ function updateStats() {
       }
     });
   }
+  // Refresh bottom stats card so it reflects latest logged trades
+  const sess3 = currentSession === 'asia' ? 'asia' : currentSession === 'london' ? 'london' : 'ny';
+  buildBacktestCard(sess3);
 }
 
 function buildDayWinRate() {
