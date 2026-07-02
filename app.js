@@ -649,18 +649,20 @@ function updateStats() {
   const total = w + l;
   const pct = total > 0 ? Math.round(w / total * 100) : 0;
 
-  // Header bar
-  document.getElementById('w-badge').textContent = w + 'W';
-  document.getElementById('l-badge').textContent = l + 'L';
-  document.getElementById('win-pct-txt').textContent = pct + '%';
-  document.getElementById('win-bar').style.width = pct + '%';
+  // Header bar + calendar mini stats always use current calendar month (not filter)
+  const mW = getWins(), mL = getLosses(), mTotal = mW + mL;
+  const mPct = mTotal > 0 ? Math.round(mW / mTotal * 100) : 0;
+  document.getElementById('w-badge').textContent = mW + 'W';
+  document.getElementById('l-badge').textContent = mL + 'L';
+  document.getElementById('win-pct-txt').textContent = mPct + '%';
+  document.getElementById('win-bar').style.width = mPct + '%';
 
   // Calendar mini stats
   const stats = document.getElementById('cal-stats');
   stats.innerHTML = `
-    <span class="cal-stat" style="background:var(--green-light);color:var(--green)">${w}W</span>
-    <span class="cal-stat" style="background:var(--red-light);color:var(--red)">${l}L</span>
-    <span class="cal-stat" style="background:var(--gold-light);color:var(--gold)">${pct}% WR</span>`;
+    <span class="cal-stat" style="background:var(--green-light);color:var(--green)">${mW}W</span>
+    <span class="cal-stat" style="background:var(--red-light);color:var(--red)">${mL}L</span>
+    <span class="cal-stat" style="background:var(--gold-light);color:var(--gold)">${mPct}% WR</span>`;
 
   // Performance tab stats
   const netDollars = w * 450 - l * 550;
