@@ -8,10 +8,16 @@ function buildBacktestCard(sess = 'ny') {
   const SL_USD = 550;
   const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const now = new Date();
+  const activeFilter = document.querySelector('.mf-btn.active')?.textContent.trim() || 'All Time';
   const months = [];
-  for (let y = 2026; y <= now.getFullYear(); y++) {
-    const end = (y === now.getFullYear()) ? now.getMonth() : 11;
-    for (let m = 0; m <= end; m++) months.push({y, m});
+  if (activeFilter === 'All Time') {
+    for (let y = 2026; y <= now.getFullYear(); y++) {
+      const end = (y === now.getFullYear()) ? now.getMonth() : 11;
+      for (let m = 0; m <= end; m++) months.push({y, m});
+    }
+  } else {
+    const idx = MN.indexOf(activeFilter);
+    if (idx !== -1) months.push({y: now.getFullYear(), m: idx});
   }
   let totalW = 0, totalL = 0, totalPnl = 0;
   let equity = 0, peak = 0, maxDd = 0;
