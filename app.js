@@ -889,6 +889,16 @@ tradeData.forEach(r => {
 function setMonthFilter(btn) {
   document.querySelectorAll('.mf-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  const label = btn.textContent.trim();
+  const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  if (label === 'All Time') {
+    calViewMonth = TODAY_MONTH; calViewYear = TODAY_YEAR;
+  } else {
+    const idx = mn.indexOf(label);
+    if (idx !== -1) { calViewMonth = idx; calViewYear = TODAY_YEAR; }
+  }
+  buildCalendar();
+  updateStats();
 }
 
 // ── Journal ───────────────────────────────────────────────────────────────
