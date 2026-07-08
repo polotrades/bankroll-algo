@@ -47,7 +47,7 @@
       <div class="header-sub">S&P 500 · Daily Signal</div>
     </div>
     <div class="header-perf">
-      <div class="perf-label">June 2026 Performance</div>
+      <div class="perf-label" id="perf-month-label">June 2026 Performance</div>
       <div class="perf-badges">
         <span class="badge-w" id="w-badge">2W</span>
         <span class="badge-l" id="l-badge">1L</span>
@@ -89,6 +89,10 @@
         style="flex:1;padding:9px;border-radius:8px;border:none;background:var(--purple);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em">
         NY Session
       </button>
+      <button id="sess-london" onclick="switchSession('london')"
+        style="flex:1;padding:9px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em">
+        London
+      </button>
       <button id="sess-asia" onclick="switchSession('asia')"
         style="flex:1;padding:9px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em">
         Asia Session
@@ -96,8 +100,21 @@
     </div>
 
     <div class="subtab-row">
-      <div class="subtab active">ES Futures</div>
-      <div class="subtab">SPY Options</div>
+      <div class="subtab active" onclick="switchSubtab('es')">ES Futures</div>
+      <div class="subtab" onclick="switchSubtab('spy')">SPY Options</div>
+    </div>
+
+    <!-- SPY Options panel -->
+    <div id="spy-panel" style="display:none">
+      <div class="card">
+        <div class="card-label">SPY Options Levels</div>
+        <div id="spy-options-body">
+          <div style="text-align:center;padding:32px 0;color:var(--text-muted);font-size:13px">
+            <i class="ti ti-refresh" style="font-size:24px;display:block;margin-bottom:8px"></i>
+            Regenerate signal to load live options data
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Loading state -->
@@ -184,55 +201,12 @@
               <span class="conf-title">Confluences</span>
               <span class="conf-confirmed"><i class="ti ti-circle-check"></i> Confirmed</span>
             </div>
-            <div class="conf-item lockable" id="conf-1-wrap">
-              <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px" id="conf-1-blur">Resistance level</span></div>
-              <div class="unlocked-state conf-item-text"><i class="ti ti-circle-check" style="color:#0F6E56"></i><span id="conf-1-val">—</span></div>
-              <span class="conf-members" id="conf-1-badge">Members Only</span>
-            </div>
-            <div class="conf-item lockable" id="conf-2-wrap">
-              <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px" id="conf-2-blur">Volume divergence</span></div>
-              <div class="unlocked-state conf-item-text"><i class="ti ti-circle-check" style="color:#0F6E56"></i><span id="conf-2-val">—</span></div>
-              <span class="conf-members" id="conf-2-badge">Members Only</span>
-            </div>
-            <div class="conf-item lockable" id="conf-3-wrap">
-              <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px" id="conf-3-blur">RSI overbought</span></div>
-              <div class="unlocked-state conf-item-text"><i class="ti ti-circle-check" style="color:#0F6E56"></i><span id="conf-3-val">—</span></div>
-              <span class="conf-members" id="conf-3-badge">Members Only</span>
-            </div>
-            <div class="conf-item conf-visible">
-              <div class="conf-item-text">
-                <div class="conf-check"><i class="ti ti-check" style="font-size:11px;color:#0F6E56"></i></div>
-                <span id="conf-public">Overnight Range</span>
-              </div>
-            </div>
-
-            <!-- Market context panel -->
-            <div id="mkt-ctx-wrap" style="display:none;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border)">
-              <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0" onclick="toggleMktCtx()">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <i class="ti ti-radar" style="font-size:14px;color:var(--text-muted)" aria-hidden="true"></i>
-                  <span style="font-size:12px;color:var(--text-muted)">What's affecting this signal</span>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span id="news-bias-badge" style="display:none;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:500"></span>
-                  <i class="ti ti-chevron-down" id="mkt-ctx-chev" style="font-size:13px;color:var(--text-muted)" aria-hidden="true"></i>
-                </div>
-              </div>
-              <div id="mkt-ctx-body" style="display:none;padding-top:10px">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-                  <div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border)">
-                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Market</div>
-                    <div id="ctx-market-rows"></div>
-                  </div>
-                  <div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border)">
-                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">SPY walls</div>
-                    <div id="ctx-walls-rows"></div>
-                  </div>
-                </div>
-                <div id="ctx-news-rows"></div>
-                <div id="ctx-bias-row" style="display:none;margin-top:6px;padding:8px 10px;border-radius:8px;display:flex;align-items:center;gap:6px">
-                  <i class="ti ti-alert-triangle" style="font-size:13px" aria-hidden="true"></i>
-                  <span id="ctx-bias-text" style="font-size:12px;font-weight:500"></span>
+            <div id="conf-grid">
+              <!-- populated by populateSignal() -->
+              <div class="conf-item conf-visible">
+                <div class="conf-item-text">
+                  <div class="conf-check"><i class="ti ti-check" style="font-size:11px;color:#0F6E56"></i></div>
+                  <span id="conf-public">Loading...</span>
                 </div>
               </div>
             </div>
@@ -263,8 +237,10 @@
           </div>
           <div class="card">
             <div class="cal-header">
-              <span class="cal-title">June 2026</span>
-              <span class="cal-hint">tap day to edit</span>
+              <button onclick="calNav(-1)" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;font-family:inherit">‹</button>
+              <span class="cal-title" id="cal-title">June 2026</span>
+              <button onclick="calNav(1)" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;font-family:inherit">›</button>
+              <span class="cal-hint" id="cal-hint">tap day to edit</span>
             </div>
             <div class="cal-grid" id="cal-grid"></div>
             <div class="cal-stats" id="cal-stats"></div>
@@ -280,6 +256,12 @@
         <div class="empty-title">Signal Pending</div>
         <div class="empty-sub">Today's signal generates automatically at 6:00 AM PT. Check back before market open.</div>
       </div>
+      <div id="admin-panel-empty" style="display:none;margin-top:12px;padding:12px;border-top:0.5px solid var(--border)">
+        <button class="gen-btn" onclick="adminRegenerateSignal()" id="regen-btn-empty">
+          <i class="ti ti-refresh"></i>
+          <span id="regen-btn-empty-text">Regenerate Signal Now</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -287,22 +269,31 @@
   <div id="tab-performance" class="tab-content">
     <div class="month-filter">
       <button class="mf-btn active" onclick="setMonthFilter(this)">All Time</button>
-      <button class="mf-btn" onclick="setMonthFilter(this)">Jan</button>
-      <button class="mf-btn" onclick="setMonthFilter(this)">Feb</button>
-      <button class="mf-btn" onclick="setMonthFilter(this)">Mar</button>
-      <button class="mf-btn" onclick="setMonthFilter(this)">Apr</button>
-      <button class="mf-btn" onclick="setMonthFilter(this)">May</button>
       <button class="mf-btn" onclick="setMonthFilter(this)">Jun</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">Jul</button>
     </div>
     <div class="perf-stats-grid">
-      <div class="perf-stat-card"><div class="psc-label">Total Signals</div><div class="psc-val">85</div><div class="psc-sub">62W / 23L</div></div>
-      <div class="perf-stat-card"><div class="psc-label">Win Rate</div><div class="psc-val tp-color">72.9%</div><div class="psc-sub">62 of 85</div></div>
-      <div class="perf-stat-card"><div class="psc-label">Profit Factor</div><div class="psc-val">2.21</div><div class="psc-sub">Gross profit / loss</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Total Signals</div><div class="psc-val" id="perf-total">0</div><div class="psc-sub" id="perf-wl">0W / 0L</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Win Rate</div><div class="psc-val tp-color" id="perf-wr">0%</div><div class="psc-sub" id="perf-wr-sub">0 of 0</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Profit Factor</div><div class="psc-val" id="perf-pf">—</div><div class="psc-sub">Gross profit / loss</div></div>
     </div>
     <div class="perf-stats-grid" style="margin-top:12px">
-      <div class="perf-stat-card"><div class="psc-label">Net P&L (1 contract)</div><div class="psc-val tp-color">+$15,250</div><div class="psc-sub">+305 pts</div></div>
-      <div class="perf-stat-card"><div class="psc-label">Avg Win (1 contract)</div><div class="locked-bar"><i class="ti ti-lock"></i> Members Only</div><div class="psc-sub">+9 pts</div></div>
-      <div class="perf-stat-card"><div class="psc-label">Avg Loss (1 contract)</div><div class="locked-bar sl-bar"><i class="ti ti-lock"></i> Members Only</div><div class="psc-sub">-11 pts</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Net P&L (1 contract)</div><div class="psc-val tp-color" id="perf-pnl">$0</div><div class="psc-sub" id="perf-pts">0 pts</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Avg Win (1 contract)</div><div class="psc-val tp-color">+$450</div><div class="psc-sub">+9 pts</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Avg Loss (1 contract)</div><div class="psc-val sl-color">-$550</div><div class="psc-sub">-11 pts</div></div>
+    </div>
+    <div id="bt-ny"     style="display:block;margin-top:12px"></div>
+    <div id="bt-london" style="display:none;margin-top:12px"></div>
+    <div id="bt-asia"   style="display:none;margin-top:12px"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-label">Direction Breakdown</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Tap calendar days to cycle: Long Win → Long Loss → Short Win → Short Loss → Clear</div>
+      <div id="dir-breakdown"></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-label">Win Rate by Day</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px" id="day-wr-date"></div>
+      <div id="day-wr"></div>
     </div>
     <div class="card" style="margin-top:16px">
       <div class="card-label">Trade History</div>
@@ -312,6 +303,30 @@
 
   <!-- ===== MARKET DATA TAB ===== -->
   <div id="tab-market" class="tab-content">
+
+    <!-- Asia Indicators -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-label">Asia Indicators</div>
+      <div class="market-live-row" style="margin-bottom:12px">
+        <div class="live-yahoo"><div class="dot"></div>Live · Yahoo Finance</div>
+        <span style="font-size:10px;color:var(--text-muted)">For Asia 3pm PT open</span>
+      </div>
+      <div class="market-grid-2" id="asia-indices">
+        <div class="market-card" id="nikkei-card">
+          <div class="market-card-label">Nikkei 225 <span style="font-size:9px;color:var(--text-muted)">^N225</span></div>
+          <div style="font-size:20px;font-weight:600;color:var(--text-primary)" id="nikkei-price">—</div>
+          <div style="font-size:12px;font-weight:600;margin-top:2px" id="nikkei-chg">Loading...</div>
+          <div style="margin-top:6px" id="nikkei-badge"></div>
+        </div>
+        <div class="market-card" id="hsi-card">
+          <div class="market-card-label">Hang Seng <span style="font-size:9px;color:var(--text-muted)">^HSI</span></div>
+          <div style="font-size:20px;font-weight:600;color:var(--text-primary)" id="hsi-price">—</div>
+          <div style="font-size:12px;font-weight:600;margin-top:2px" id="hsi-chg">Loading...</div>
+          <div style="margin-top:6px" id="hsi-badge"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="market-live-row">
         <div class="live-yahoo"><div class="dot"></div>Live · Yahoo Finance</div>
@@ -359,6 +374,6 @@
 
 </div>
 
-<script src="app.js"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
