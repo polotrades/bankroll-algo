@@ -1,11 +1,10 @@
 {
   "functions": { "api/*.js": { "maxDuration": 30 } },
-  "rewrites": [{ "source": "/api/(.*)", "destination": "/api/$1" }],
+  "rewrites": [
+    { "source": "/webhook", "destination": "/api/rebound-webhook" },
+    { "source": "/api/(.*)", "destination": "/api/$1" }
+  ],
   "headers": [
-    {
-      "source": "/app.js",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
-    },
     {
       "source": "/index.html",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
@@ -15,9 +14,5 @@
     { "path": "/api/generate-signal",        "schedule": "0 13 * * 1-5" },
     { "path": "/api/generate-london-signal", "schedule": "45 7 * * 1-5" },
     { "path": "/api/generate-asia-signal",   "schedule": "0 23 * * 0-4" }
-  ],
-  "rewrites": [
-    { "source": "/webhook", "destination": "/api/rebound-webhook" },
-    { "source": "/api/(.*)", "destination": "/api/$1" }
   ]
 }
