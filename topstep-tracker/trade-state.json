@@ -1,0 +1,35 @@
+{
+  "settings": {
+    "name": "Practice Account",
+    "instrument": "NQ",
+    "startBalance": 50000,
+    "winAmount": 460,
+    "lossAmount": 560,
+    "tpPts": 23,
+    "slPts": 28,
+    "contracts": 2,
+    "trailingLimit": 2000,
+    "dailyLimit": 1000,
+    "profitTarget": 3000,
+    "maxPayout": 2000,
+    "payoutDays": 5
+  },
+  "trades": [
+    {
+      "id": 1783441621387,
+      "direction": "long",
+      "entry": 29459,
+      "tp": 29468,
+      "sl": 29448,
+      "date": "2026-07-07",
+      "timestamp": 1783441621387,
+      "result": "win",
+      "pnl": 460,
+      "balance": 50460,
+      "resolvedAt": 1783441818547
+    }
+  ],
+  "payouts": [],
+  "pending": null,
+  "journal": []
+}

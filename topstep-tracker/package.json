@@ -1,0 +1,13 @@
+{
+  "name": "topstep-tracker",
+  "version": "1.0.0",
+  "description": "TopStep account tracker with TradingView webhook automation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "yahoo-finance2": "^2.14.0"
+  }
+}

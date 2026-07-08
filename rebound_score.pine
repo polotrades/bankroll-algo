@@ -1,0 +1,348 @@
+//@version=5
+indicator("The Rebound", overlay=true, max_labels_count=200)
+
+// ── Settings ─────────────────────────────────────────────────
+emaLen      = input.int(9,     "EMA Length",                    group="Settings")
+slopeLen    = input.int(5,     "EMA Slope Lookback",            group="Settings")
+slopeMin    = input.float(0.3, "Min EMA Slope (pts)",           group="Settings")
+maxPullback = input.int(4,     "Max Pullback Candles",          group="Settings")
+minPullback = input.int(2,     "Min Pullback Candles",          group="Settings")
+minTrend    = input.int(3,     "Min Trend Candles Before Pull", group="Settings")
+wickRatio   = input.float(0.4, "Min Body/Range Ratio",          group="Settings")
+tpPts       = input.float(9.0, "Take Profit (pts)",             group="Win Tracker")
+slPts       = input.float(11.0,"Stop Loss (pts)",               group="Win Tracker")
+maxBarsOut  = input.int(60,    "Max Bars to Resolve",           group="Win Tracker")
+
+// ── Skip Filter Settings ─────────────────────────────────────
+dblSigBars   = input.int(10,   "Double Signal: Lookback (bars)", group="Skip Filters", tooltip="Skip if another signal fired within N bars")
+choppyPeriod = input.int(30,   "Choppy: Lookback (bars)",        group="Skip Filters", tooltip="Choppiness Index period — higher = longer view")
+choppyLevel  = input.float(61.8,"Choppy: CI Threshold",          group="Skip Filters", tooltip="CI > 61.8 = choppy range, CI < 38.2 = strong trend")
+extendedMax  = input.int(12,   "Extended Move: Max Trend Bars",  group="Skip Filters", tooltip="Skip if EMA trended same direction this many bars before pullback")
+minPreTrend  = input.int(3,  "Weak Trend: Min Pre-Trend Bars", group="Skip Filters", tooltip="Skip if EMA trended less than N bars before pullback — set to 0 to disable")
+
+// ── EMA ──────────────────────────────────────────────────────
+ema = ta.ema(close, emaLen)
+plot(ema, "EMA 9", color=color.new(#f0c040, 60), linewidth=2)
+
+// ── RULE 1: EMA Slope ────────────────────────────────────────
+emaDiff   = ema - ema[slopeLen]
+slopeUp   = emaDiff >  slopeMin
+slopeDown = emaDiff < -slopeMin
+
+// ── RULE 2: Body on Correct Side ─────────────────────────────
+bodyAbove   = math.min(open, close) > ema + 1.0
+bodyBelow   = math.max(open, close) < ema - 1.0
+correctSide = (slopeUp and bodyAbove) or (slopeDown and bodyBelow)
+
+// ── RULE 3: Pullback Count 2-4 candles ───────────────────────
+var int pullCount = 0
+pullCount := 0
+if slopeUp
+    for i = 1 to maxPullback
+        if close[i] < open[i]
+            pullCount += 1
+        else
+            break
+else if slopeDown
+    for i = 1 to maxPullback
+        if close[i] > open[i]
+            pullCount += 1
+        else
+            break
+
+validPullback = pullCount >= minPullback and pullCount <= maxPullback
+
+// ── RULE 4: Pullback Bodies Stayed on Side ───────────────────
+var bool bodiesValid = true
+bodiesValid := true
+if slopeUp
+    for i = 1 to pullCount
+        if math.min(open[i], close[i]) < ema[i] + 1.0
+            bodiesValid := false
+else if slopeDown
+    for i = 1 to pullCount
+        if math.max(open[i], close[i]) > ema[i] - 1.0
+            bodiesValid := false
+
+// ── RULE 5: Trend Established Before Pullback ────────────────
+var int trendCount = 0
+trendCount := 0
+if slopeUp
+    for i = pullCount + 1 to pullCount + 10
+        if math.min(open[i], close[i]) > ema[i]
+            trendCount += 1
+        else
+            break
+else if slopeDown
+    for i = pullCount + 1 to pullCount + 10
+        if math.max(open[i], close[i]) < ema[i]
+            trendCount += 1
+        else
+            break
+
+validTrend = trendCount >= minTrend
+
+// ── RULE 6: Entry Candle = First Reversal ────────────────────
+bullEntry = slopeUp   and close > open and close > close[1]
+bearEntry = slopeDown and close < open and close < close[1]
+
+// ── RULE 7: Clean Candle ─────────────────────────────────────
+candleRange = high - low
+bodySize    = math.abs(close - open)
+cleanCandle = candleRange > 0 and (bodySize / candleRange) >= wickRatio
+
+// ── RAW SIGNAL ───────────────────────────────────────────────
+bullSignal = slopeUp   and correctSide and validPullback and bodiesValid and validTrend and bullEntry
+bearSignal = slopeDown and correctSide and validPullback and bodiesValid and validTrend and bearEntry
+
+// ══════════════════════════════════════════════════════════════
+// ── SKIP FILTER 1: DOUBLE SIGNAL ─────────────────────────────
+// Block if another signal fired within dblSigBars bars
+// ══════════════════════════════════════════════════════════════
+var int barsSinceSignal = 1000
+
+// Check BEFORE updating so filter uses previous valid signal's timing
+f1_double = barsSinceSignal < dblSigBars
+
+// ══════════════════════════════════════════════════════════════
+// ── SKIP FILTER 2: CHOPPINESS INDEX ──────────────────────────
+// Uses the standard Choppiness Index formula.
+// CI > 61.8 = choppy/ranging market → SKIP
+// CI < 38.2 = strongly trending → take signal
+// ══════════════════════════════════════════════════════════════
+ciTR    = math.max(high - low, math.abs(high - close[1]), math.abs(low - close[1]))
+ciATR   = math.sum(ciTR, choppyPeriod)
+ciHH    = ta.highest(high, choppyPeriod)
+ciLL    = ta.lowest(low,  choppyPeriod)
+ciRange = ciHH - ciLL
+ci      = ciRange > 0 ? 100.0 * math.log10(ciATR / ciRange) / math.log10(choppyPeriod) : 50.0
+
+f2_choppy = ci > choppyLevel
+
+// ══════════════════════════════════════════════════════════════
+// ── SKIP FILTER 3: EXTENDED PRIOR MOVE ───────────────────────
+// Block if EMA trended same direction for extendedMax+ bars
+// before the pullback (move already exhausted)
+// ══════════════════════════════════════════════════════════════
+var int preTrendBars = 0
+preTrendBars := 0
+if slopeUp
+    for i = pullCount + 1 to pullCount + 50
+        if ema[i] <= ema[i + 1]
+            break
+        preTrendBars += 1
+else if slopeDown
+    for i = pullCount + 1 to pullCount + 50
+        if ema[i] >= ema[i + 1]
+            break
+        preTrendBars += 1
+
+f3_extended = preTrendBars >= extendedMax
+
+// ── SKIP FILTER 4: WEAK / SHORT PRE-TREND ────────────────────
+// Block if EMA trended less than N bars before pullback
+// Default 3 = only block signals with almost no pre-trend
+f4_weak = preTrendBars < minPreTrend
+
+// ── COMBINED FILTER ──────────────────────────────────────────
+anyFilter    = f1_double or f2_choppy or f3_extended or f4_weak
+bullValid    = bullSignal and not anyFilter
+bearValid    = bearSignal and not anyFilter
+bullFiltered = bullSignal and anyFilter
+bearFiltered = bearSignal and anyFilter
+
+// ── UPDATE DBL SIGNAL COUNTER (valid signals only) ───────────
+// Bug fix: only reset counter on valid signals, not filtered ones.
+// Previously, filtered signals reset the counter, causing the next
+// clean signal to get blocked by f1_double incorrectly.
+if bullValid or bearValid
+    barsSinceSignal := 0
+else
+    barsSinceSignal := math.min(barsSinceSignal + 1, 1000)
+
+// ── SCORE ────────────────────────────────────────────────────
+var int score = 0
+score := 0
+if slopeUp or slopeDown
+    score += 15
+if correctSide
+    score += 15
+if validTrend
+    score += 15
+if validPullback
+    score += 15
+if pullCount > 0 and bodiesValid
+    score += 15
+if bullEntry or bearEntry
+    score += 15
+if cleanCandle
+    score += 10
+
+scoreColor = score >= 85 ? color.new(#00e676, 0) :
+             score >= 60 ? color.new(#ffd600, 0) :
+                           color.new(#ff3d5a, 0)
+
+// ── WIN RATE TRACKER (valid / unfiltered signals only) ───────
+// Entry signals: bar AFTER the valid signal, at open (= same price webhook sends)
+bullEntrySignal = bullValid[1]
+bearEntrySignal = bearValid[1]
+
+var int   totalWins   = 0
+var int   totalLosses = 0
+var float trackEntry  = na
+var bool  trackOpen   = false
+var bool  trackIsBull = false
+var int   trackBars   = 0
+
+// Use open of the bar AFTER the signal — same price the webhook sends ({{open}})
+// This keeps the tracker's TP/SL levels in sync with the actual trade
+if (bullEntrySignal or bearEntrySignal) and not trackOpen
+    trackEntry  := open
+    trackIsBull := bullEntrySignal
+    trackOpen   := true
+    trackBars   := 0
+
+var bool tpHit = false
+var bool slHit = false
+tpHit := false
+slHit := false
+
+if trackOpen
+    trackBars += 1
+    if trackIsBull
+        if high >= trackEntry + tpPts
+            totalWins  += 1
+            trackOpen  := false
+            tpHit      := true
+        else if low <= trackEntry - slPts
+            totalLosses += 1
+            trackOpen   := false
+            slHit       := true
+    else
+        if low <= trackEntry - tpPts
+            totalWins  += 1
+            trackOpen  := false
+            tpHit      := true
+        else if high >= trackEntry + slPts
+            totalLosses += 1
+            trackOpen   := false
+            slHit       := true
+    if trackOpen and trackBars >= maxBarsOut
+        trackOpen := false
+
+resolvedTrades = totalWins + totalLosses
+winPct = resolvedTrades > 0 ? math.round((totalWins / resolvedTrades) * 100) : 0
+winColor = winPct >= 60 ? color.new(#00e676, 0) :
+           winPct >= 50 ? color.new(#ffd600, 0) :
+                          color.new(#ff3d5a, 0)
+
+// ── TABLE (16 rows) ──────────────────────────────────────────
+var table t = table.new(position.top_right, 2, 17,
+     bgcolor=color.new(#0d1117, 5),
+     border_color=color.new(#1e2a38, 100), border_width=1,
+     frame_color=color.new(#1e2a38, 100), frame_width=1)
+
+drawRow(r, lbl, pass) =>
+    c = pass ? color.new(#00e676, 0) : color.new(#ff3d5a, 0)
+    table.cell(t, 0, r, lbl,
+         text_color=color.new(#8899aa, 0), text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, r, pass ? "✓" : "✗",
+         text_color=c, text_size=size.tiny, text_halign=text.align_right)
+
+drawFilterRow(r, lbl, filterActive) =>
+    c    = filterActive ? color.new(#ff9800, 0) : color.new(#00e676, 0)
+    icon = filterActive ? "⚠" : "✓"
+    table.cell(t, 0, r, lbl,
+         text_color=color.new(#8899aa, 0), text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, r, icon,
+         text_color=c, text_size=size.tiny, text_halign=text.align_right)
+
+verdict      = bullValid or bearValid ? "✓  TAKE IT" : bullFiltered or bearFiltered ? "⚠  FILTER" : "✗  SKIP"
+verdictColor = bullValid or bearValid ? color.new(#00e676, 0) : bullFiltered or bearFiltered ? color.new(#ff9800, 0) : color.new(#ff3d5a, 0)
+
+if barstate.islast
+
+    table.cell(t, 0, 0, "THE REBOUND",
+         text_color=color.new(#4fc3f7, 0), text_size=size.small,
+         bgcolor=color.new(#0a0e14, 0), text_halign=text.align_left)
+    table.cell(t, 1, 0, str.tostring(score) + "%",
+         text_color=scoreColor, text_size=size.small,
+         bgcolor=color.new(#0a0e14, 0), text_halign=text.align_right)
+
+    drawRow(1, "EMA Slope",     slopeUp or slopeDown)
+    drawRow(2, "Correct Side",  correctSide)
+    drawRow(3, "Trend 3+ bars", validTrend)
+    drawRow(4, "Pullback 2-4",  validPullback)
+    drawRow(5, "Bodies Valid",  pullCount > 0 and bodiesValid)
+    drawRow(6, "Entry Candle",  bullEntry or bearEntry)
+    drawRow(7, "Clean Wick",    cleanCandle)
+
+    table.cell(t, 0, 8, "── SKIP FILTERS ──",
+         text_color=color.new(#546e7a, 0), text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 8, "",
+         text_color=color.new(#546e7a, 0), text_size=size.tiny)
+
+    drawFilterRow(9,  "No Dbl Signal",  f1_double)
+    drawFilterRow(10, "CI " + str.tostring(math.round(ci, 1)), f2_choppy)
+    drawFilterRow(11, "Move Not Extd",  f3_extended)
+    drawFilterRow(12, "Pre-Trend 3+",  f4_weak)
+
+    table.cell(t, 0, 13, "Trend/Pull:",
+         text_color=color.new(#546e7a, 0), text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 13, str.tostring(trendCount) + "/" + str.tostring(pullCount),
+         text_color=color.new(#8899aa, 0), text_size=size.tiny, text_halign=text.align_right)
+
+    table.cell(t, 0, 14, "Pre-Trend:",
+         text_color=color.new(#546e7a, 0), text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 14, str.tostring(preTrendBars) + " bars",
+         text_color=(f3_extended or f4_weak) ? color.new(#ff9800, 0) : color.new(#8899aa, 0),
+         text_size=size.tiny, text_halign=text.align_right)
+
+    table.cell(t, 0, 15, "Win Rate:",
+         text_color=color.new(#546e7a, 0), text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 15,
+         str.tostring(winPct) + "% (" + str.tostring(totalWins) + "/" + str.tostring(resolvedTrades) + ")",
+         text_color=winColor, text_size=size.tiny, text_halign=text.align_right)
+
+    table.cell(t, 0, 16, verdict,
+         text_color=verdictColor, text_size=size.small, text_halign=text.align_left)
+    table.cell(t, 1, 16, "",
+         text_color=verdictColor, text_size=size.small)
+
+// ── SIGNAL LABELS ────────────────────────────────────────────
+if bullValid
+    label.new(bar_index, low,
+         text="▲ LONG  " + str.tostring(score) + "%",
+         color=color.new(#00e676, 0), textcolor=color.white,
+         style=label.style_label_up, size=size.normal)
+
+if bearValid
+    label.new(bar_index, high,
+         text="▼ SHORT  " + str.tostring(score) + "%",
+         color=color.new(#ff3d5a, 0), textcolor=color.white,
+         style=label.style_label_down, size=size.normal)
+
+if bullFiltered
+    filterReason = f1_double ? "DBL" : f2_choppy ? "CHOP" : f3_extended ? "EXTD" : "WEAK"
+    label.new(bar_index, low,
+         text="▲ SKIP (" + filterReason + ")",
+         color=color.new(#ff9800, 0), textcolor=color.white,
+         style=label.style_label_up, size=size.normal)
+
+if bearFiltered
+    filterReason = f1_double ? "DBL" : f2_choppy ? "CHOP" : f3_extended ? "EXTD" : "WEAK"
+    label.new(bar_index, high,
+         text="▼ SKIP (" + filterReason + ")",
+         color=color.new(#ff9800, 0), textcolor=color.white,
+         style=label.style_label_down, size=size.normal)
+
+// ── ALERTS ───────────────────────────────────────────────────
+// Entry alerts fire on the bar AFTER the signal (next candle open).
+// Set alert trigger to "Once Per Bar" — fires at first tick = open.
+// Webhook JSON is sent to your local tracker server.
+
+
+alertcondition(bullEntrySignal, title="LONG Entry",  message='{"event":"long","entry":{{open}}}')
+alertcondition(bearEntrySignal, title="SHORT Entry", message='{"event":"short","entry":{{open}}}')
+alertcondition(tpHit,           title="TP Hit",      message='{"event":"tp"}')
+alertcondition(slHit,           title="SL Hit",      message='{"event":"sl"}')

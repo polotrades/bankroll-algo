@@ -1,0 +1,143 @@
+//@version=5
+strategy("The Rebound - Backtest", overlay=true,
+     initial_capital=50000,
+     default_qty_type=strategy.fixed,
+     default_qty_value=1,
+     commission_type=strategy.commission.cash_per_contract,
+     commission_value=5.0,
+     slippage=1)
+
+// ── Settings ─────────────────────────────────────────────────
+emaLen      = input.int(9,     "EMA Length",                    group="Settings")
+slopeLen    = input.int(5,     "EMA Slope Lookback",            group="Settings")
+slopeMin    = input.float(0.3, "Min EMA Slope (pts)",           group="Settings")
+maxPullback = input.int(4,     "Max Pullback Candles",          group="Settings")
+minPullback = input.int(2,     "Min Pullback Candles",          group="Settings")
+minTrend    = input.int(3,     "Min Trend Candles Before Pull", group="Settings")
+wickRatio   = input.float(0.4, "Min Body/Range Ratio",          group="Settings")
+cooldown    = input.int(10,    "Cooldown Bars Between Signals", group="Settings")
+tpPts       = input.float(9.0, "Take Profit (pts)",             group="Settings")
+slPts       = input.float(11.0,"Stop Loss (pts)",               group="Settings")
+
+// ── Session Filter (PT) ───────────────────────────────────────
+ptMins    = hour(time, "America/Los_Angeles") * 60 + minute(time, "America/Los_Angeles")
+inWindow1 = ptMins >= 405 and ptMins <= 510
+inWindow2 = ptMins >= 660 and ptMins <= 750
+inSession = inWindow1 or inWindow2
+
+// ── EMA ──────────────────────────────────────────────────────
+ema = ta.ema(close, emaLen)
+plot(ema, "EMA 9", color=color.new(#f0c040, 60), linewidth=2)
+
+// ── RULE 1: EMA Slope ────────────────────────────────────────
+emaDiff   = ema - ema[slopeLen]
+slopeUp   = emaDiff >  slopeMin
+slopeDown = emaDiff < -slopeMin
+
+// ── RULE 2: Body on Correct Side ─────────────────────────────
+bodyAbove   = math.min(open, close) > ema
+bodyBelow   = math.max(open, close) < ema
+correctSide = (slopeUp and bodyAbove) or (slopeDown and bodyBelow)
+
+// ── RULE 3: Pullback Count 2-4 candles ───────────────────────
+var int pullCount = 0
+pullCount := 0
+if slopeUp
+    for i = 1 to maxPullback
+        if close[i] < open[i]
+            pullCount += 1
+        else
+            break
+else if slopeDown
+    for i = 1 to maxPullback
+        if close[i] > open[i]
+            pullCount += 1
+        else
+            break
+
+validPullback = pullCount >= minPullback and pullCount <= maxPullback
+
+// ── RULE 4: Pullback Bodies Stayed on Side ───────────────────
+var bool bodiesValid = true
+bodiesValid := true
+if slopeUp
+    for i = 1 to pullCount
+        if math.min(open[i], close[i]) < ema[i]
+            bodiesValid := false
+else if slopeDown
+    for i = 1 to pullCount
+        if math.max(open[i], close[i]) > ema[i]
+            bodiesValid := false
+
+// ── RULE 5: Trend Established Before Pullback ────────────────
+var int trendCount = 0
+trendCount := 0
+if slopeUp
+    for i = pullCount + 1 to pullCount + 10
+        if math.min(open[i], close[i]) > ema[i]
+            trendCount += 1
+        else
+            break
+else if slopeDown
+    for i = pullCount + 1 to pullCount + 10
+        if math.max(open[i], close[i]) < ema[i]
+            trendCount += 1
+        else
+            break
+
+validTrend = trendCount >= minTrend
+
+// ── RULE 6: Entry Candle = First Reversal ────────────────────
+bullEntry = slopeUp   and close > open and close > close[1]
+bearEntry = slopeDown and close < open and close < close[1]
+
+// ── RULE 7: Clean Candle ─────────────────────────────────────
+candleRange = high - low
+bodySize    = math.abs(close - open)
+cleanCandle = candleRange > 0 and (bodySize / candleRange) >= wickRatio
+
+// ── COOLDOWN ─────────────────────────────────────────────────
+var int lastSignalBar = 0
+cooledDown = (bar_index - lastSignalBar) >= cooldown
+
+// ── DAILY TRADE LIMIT (max 2 per day) ────────────────────────
+var int tradesThisDay = 0
+var int lastTradeDay  = 0
+if dayofmonth(time) != lastTradeDay
+    tradesThisDay := 0
+    lastTradeDay  := dayofmonth(time)
+underLimit = tradesThisDay < 2
+
+// ── SIGNALS (100% only — cleanCandle required) ───────────────
+bullSignal = slopeUp   and correctSide and validPullback and bodiesValid and validTrend and bullEntry and cleanCandle and inSession and cooledDown and underLimit
+bearSignal = slopeDown and correctSide and validPullback and bodiesValid and validTrend and bearEntry and cleanCandle and inSession and cooledDown and underLimit
+
+// ── ENTRIES ──────────────────────────────────────────────────
+if bullSignal and strategy.position_size == 0
+    lastSignalBar := bar_index
+    tradesThisDay := tradesThisDay + 1
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Long Exit", "Long",
+         limit=close + tpPts,
+         stop =close - slPts)
+
+if bearSignal and strategy.position_size == 0
+    lastSignalBar := bar_index
+    tradesThisDay := tradesThisDay + 1
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Short Exit", "Short",
+         limit=close - tpPts,
+         stop =close + slPts)
+
+// ── SIGNAL LABELS ────────────────────────────────────────────
+if bullSignal
+    label.new(bar_index, low,
+         text="▲ LONG",
+         color=color.new(#00e676, 0), textcolor=color.white,
+         style=label.style_label_up, size=size.small)
+
+if bearSignal
+    label.new(bar_index, high,
+         text="▼ SHORT",
+         color=color.new(#ff3d5a, 0), textcolor=color.white,
+         style=label.style_label_down, size=size.small)
