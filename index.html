@@ -3,608 +3,362 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>THE REBOUND · NQ Tracker</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#050400;color:#F0ECD8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;padding:20px 24px}
-a{color:inherit;text-decoration:none}
-button{font-family:inherit;cursor:pointer}
-
-/* ── GOLD UTILITIES ── */
-.gold{color:#C9A84C}
-.gold-bright{color:#D4AF37}
-.g-win{color:#00CC55}
-.g-loss{color:#E03030}
-.g-muted{color:#8A7E5A}
-
-/* ── HEADER ── */
-.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid rgba(201,168,76,0.2)}
-.hdr-logo{font-size:22px;font-weight:800;letter-spacing:3px;color:#D4AF37;text-transform:uppercase}
-.hdr-sub{font-size:12px;color:#8A7E5A;letter-spacing:2px;margin-top:2px;text-transform:uppercase}
-.hdr-r{display:flex;align-items:center;gap:10px}
-.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px}
-.dot-on{background:#00CC55;box-shadow:0 0 6px #00CC55}
-.dot-off{background:#666}
-.conn{font-size:11px;color:#8A7E5A;letter-spacing:1px}
-.status-badge{padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
-.s-active{background:rgba(0,204,85,.12);color:#00CC55;border:1px solid rgba(0,204,85,.3)}
-.s-warning{background:rgba(201,168,76,.12);color:#C9A84C;border:1px solid rgba(201,168,76,.3)}
-.s-blown{background:rgba(224,48,48,.12);color:#E03030;border:1px solid rgba(224,48,48,.3)}
-.s-passed{background:rgba(212,175,55,.15);color:#D4AF37;border:1px solid rgba(212,175,55,.35)}
-.ibtn{background:transparent;border:1px solid rgba(201,168,76,.25);border-radius:6px;color:#8A7E5A;padding:6px 14px;font-size:11px;letter-spacing:1px}
-.ibtn:hover{border-color:#C9A84C;color:#C9A84C}
-
-/* ── PROGRESS BAR ── */
-.progress-section{background:linear-gradient(135deg,#0d0b00 0%,#110e00 100%);border:1px solid rgba(201,168,76,.2);border-radius:12px;padding:20px 24px;margin-bottom:20px}
-.prog-top{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px}
-.prog-bal{font-size:36px;font-weight:800;color:#D4AF37;letter-spacing:-1px}
-.prog-target{font-size:12px;color:#8A7E5A;text-align:right;text-transform:uppercase;letter-spacing:1px}
-.prog-target span{display:block;font-size:18px;font-weight:700;color:#C9A84C}
-.prog-bar-wrap{height:6px;background:rgba(201,168,76,.1);border-radius:3px;overflow:hidden;margin-bottom:8px}
-.prog-bar-fill{height:100%;background:linear-gradient(90deg,#8B7332,#D4AF37);border-radius:3px;transition:width .6s ease}
-.prog-labels{display:flex;justify-content:space-between;font-size:10px;color:#8A7E5A;letter-spacing:1px}
-
-/* ── WARN BANNER ── */
-.warn-banner{background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#C9A84C;letter-spacing:.5px}
-.blown-banner{background:rgba(224,48,48,.06);border:1px solid rgba(224,48,48,.2);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#E03030}
-
-/* ── TODAY'S TRADE ── */
-.trade-card{border-radius:12px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.tc-pending{background:linear-gradient(135deg,rgba(201,168,76,.05),rgba(201,168,76,.02));border:1px solid rgba(201,168,76,.35)}
-.tc-idle{background:rgba(13,11,0,.8);border:1px dashed rgba(201,168,76,.15)}
-.tc-done-win{background:linear-gradient(135deg,rgba(0,204,85,.05),rgba(0,0,0,0));border:1px solid rgba(0,204,85,.25)}
-.tc-done-loss{background:linear-gradient(135deg,rgba(224,48,48,.05),rgba(0,0,0,0));border:1px solid rgba(224,48,48,.2)}
-.dir-long{padding:5px 14px;border-radius:6px;background:rgba(0,204,85,.12);color:#00CC55;border:1px solid rgba(0,204,85,.35);font-size:12px;font-weight:700;letter-spacing:1px}
-.dir-short{padding:5px 14px;border-radius:6px;background:rgba(224,48,48,.12);color:#E03030;border:1px solid rgba(224,48,48,.35);font-size:12px;font-weight:700;letter-spacing:1px}
-.tc-info{display:flex;flex-direction:column;gap:4px}
-.tc-entry{font-size:14px;font-weight:600}
-.tc-entry span{color:#8A7E5A;font-size:11px;font-weight:400;margin-right:4px;letter-spacing:1px}
-.tc-levels{font-size:12px;color:#8A7E5A;margin-top:2px}
-.tc-time{font-size:11px;color:#8A7E5A;margin-top:3px;letter-spacing:.5px}
-.elapsed{font-size:11px;color:#C9A84C;background:rgba(201,168,76,.1);padding:3px 10px;border-radius:4px;border:1px solid rgba(201,168,76,.2)}
-.tc-btns{display:flex;gap:8px}
-.btn-win{padding:8px 18px;border-radius:8px;background:rgba(0,204,85,.1);border:1px solid #00CC55;color:#00CC55;font-size:12px;font-weight:700;letter-spacing:.5px}
-.btn-loss{padding:8px 18px;border-radius:8px;background:rgba(224,48,48,.08);border:1px solid #E03030;color:#E03030;font-size:12px;font-weight:700;letter-spacing:.5px}
-.btn-cancel{padding:8px 12px;border-radius:8px;background:transparent;border:1px solid rgba(201,168,76,.2);color:#8A7E5A;font-size:12px}
-.tc-idle-lbl{font-size:13px;color:#8A7E5A;letter-spacing:1px}
-.done-result{text-align:right}
-.done-lbl{font-size:10px;color:#8A7E5A;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
-.done-val{font-size:26px;font-weight:800;letter-spacing:-1px}
-.done-sub{font-size:11px;color:#8A7E5A;margin-top:2px}
-
-/* ── METRIC CARDS ── */
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
-.card{background:#0d0b00;border:1px solid rgba(201,168,76,.15);border-radius:10px;padding:16px 18px}
-.card-lbl{font-size:9px;color:#8A7E5A;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
-.card-val{font-size:26px;font-weight:800;line-height:1;letter-spacing:-1px}
-.card-sub{font-size:10px;color:#8A7E5A;margin-top:5px;letter-spacing:.5px}
-.prog-mini{margin-top:10px}
-.prog-mini-row{display:flex;justify-content:space-between;font-size:9px;color:#8A7E5A;margin-bottom:3px;letter-spacing:.5px}
-.prog-mini-bar{height:3px;background:rgba(201,168,76,.1);border-radius:2px;overflow:hidden}
-.prog-mini-fill{height:100%;border-radius:2px;transition:width .4s}
-
-/* ── SECTIONS ── */
-.section{background:#0d0b00;border:1px solid rgba(201,168,76,.15);border-radius:12px;padding:20px 22px;margin-bottom:20px}
-.section-title{font-size:10px;color:#8A7E5A;text-transform:uppercase;letter-spacing:2px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
-.section-title span{color:#C9A84C}
-
-/* ── ALGO STATS ── */
-.algo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
-.astat{background:rgba(0,0,0,.4);border:1px solid rgba(201,168,76,.1);border-radius:8px;padding:12px 14px;text-align:center}
-.astat-val{font-size:22px;font-weight:800;color:#D4AF37}
-.astat-lbl{font-size:9px;color:#8A7E5A;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
-.algo-note{font-size:11px;color:#8A7E5A;line-height:1.6;padding:12px 14px;background:rgba(0,0,0,.3);border-radius:6px;border-left:2px solid rgba(201,168,76,.3)}
-
-/* ── IMPROVE PANEL ── */
-.improve-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.improve-item{background:rgba(0,0,0,.3);border-radius:8px;padding:12px;border-left:2px solid rgba(201,168,76,.3)}
-.improve-title{font-size:10px;color:#C9A84C;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
-.improve-text{font-size:11px;color:#8A7E5A;line-height:1.5}
-
-/* ── MANUAL LOG ── */
-.dir-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.dbtn{padding:9px;border-radius:8px;border:1px solid rgba(201,168,76,.2);background:transparent;color:#8A7E5A;font-size:12px;font-weight:600;letter-spacing:.5px}
-.dbtn-long{background:rgba(0,204,85,.1);border-color:#00CC55;color:#00CC55}
-.dbtn-short{background:rgba(224,48,48,.08);border-color:#E03030;color:#E03030}
-.res-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.rbtn{padding:16px;border-radius:10px;border:2px solid;font-size:14px;font-weight:700;letter-spacing:.5px}
-.rbtn-win{background:rgba(0,204,85,.08);border-color:#00CC55;color:#00CC55}
-.rbtn-loss{background:rgba(224,48,48,.07);border-color:#E03030;color:#E03030}
-.rbtn-sub{font-size:11px;font-weight:400;display:block;margin-top:3px;opacity:.7}
-.note-inp{width:100%;background:rgba(0,0,0,.5);border:1px solid rgba(201,168,76,.15);border-radius:8px;padding:9px 12px;color:#F0ECD8;font-size:13px;outline:none;margin-bottom:8px;font-family:inherit}
-.note-inp:focus{border-color:rgba(201,168,76,.5)}
-.note-inp::placeholder{color:#8A7E5A}
-.ntbtn{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(201,168,76,.2);background:transparent;color:#8A7E5A;font-size:12px}
-.ntbtn:hover{border-color:#C9A84C;color:#C9A84C}
-
-/* ── CALENDAR ── */
-.cal-hdr{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
-.cal-dn{font-size:9px;color:#8A7E5A;text-align:center;text-transform:uppercase;letter-spacing:.5px}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.cal-cell{aspect-ratio:1;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600}
-.cal-win{background:rgba(0,204,85,.2);color:#00CC55}
-.cal-loss{background:rgba(224,48,48,.2);color:#E03030}
-.cal-nt{background:rgba(201,168,76,.08);color:#8A7E5A}
-.cal-empty{background:transparent}
-.cal-today{outline:1px solid rgba(201,168,76,.5)}
-
-/* ── HISTORY TABLE ── */
-.tabs{display:flex;gap:5px}
-.tab{padding:4px 14px;border-radius:6px;border:1px solid rgba(201,168,76,.15);background:transparent;color:#8A7E5A;font-size:11px;letter-spacing:.5px}
-.tab-on{background:rgba(201,168,76,.1);color:#C9A84C;border-color:rgba(201,168,76,.4)}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{text-align:left;color:#8A7E5A;font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:7px 10px;border-bottom:1px solid rgba(201,168,76,.1)}
-td{padding:8px 10px;border-bottom:1px solid rgba(201,168,76,.05);vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(201,168,76,.02)}
-.delbtn{background:none;border:none;color:#8A7E5A;cursor:pointer;font-size:12px;padding:2px 6px;opacity:.5}
-.delbtn:hover{color:#E03030;opacity:1}
-.tag-long{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:rgba(0,204,85,.12);color:#00CC55}
-.tag-short{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:rgba(224,48,48,.12);color:#E03030}
-.empty{text-align:center;color:#8A7E5A;padding:32px;font-size:12px;letter-spacing:1px}
-
-/* ── JOURNAL ── */
-.journal-ta{width:100%;background:rgba(0,0,0,.5);border:1px solid rgba(201,168,76,.15);border-radius:8px;padding:12px 14px;color:#F0ECD8;font-size:13px;min-height:90px;resize:vertical;outline:none;font-family:inherit;line-height:1.6;margin-bottom:10px}
-.journal-ta:focus{border-color:rgba(201,168,76,.4)}
-.journal-ta::placeholder{color:#8A7E5A}
-.save-btn{padding:8px 22px;background:linear-gradient(135deg,#8B7332,#C9A84C);color:#000;border:none;border-radius:8px;font-weight:700;font-size:12px;letter-spacing:.5px}
-.jentry{display:flex;gap:14px;padding:14px 0;border-top:1px solid rgba(201,168,76,.08)}
-.jday{min-width:40px;text-align:center}
-.jday-num{font-size:20px;font-weight:800;color:#D4AF37;line-height:1}
-.jday-mon{font-size:9px;color:#8A7E5A;text-transform:uppercase}
-.jbody{flex:1}
-.jnote{font-size:12px;color:#8A7E5A;line-height:1.6;margin-top:4px}
-.jdel{background:none;border:none;color:#8A7E5A;cursor:pointer;font-size:11px;opacity:.4}
-.jdel:hover{color:#E03030;opacity:1}
-
-/* ── MODAL ── */
-.overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:1000}
-.modal{background:#0d0b00;border:1px solid rgba(201,168,76,.3);border-radius:14px;padding:28px;width:420px;max-width:92vw;max-height:90vh;overflow-y:auto}
-.modal h2{font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#C9A84C;margin-bottom:20px}
-.fg{margin-bottom:12px}
-.fl{font-size:10px;color:#8A7E5A;margin-bottom:5px;display:block;text-transform:uppercase;letter-spacing:1px}
-.fi{width:100%;background:rgba(0,0,0,.5);border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:9px 12px;color:#F0ECD8;font-size:13px;outline:none;font-family:inherit}
-.fi:focus{border-color:rgba(201,168,76,.5)}
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.mbtns{display:flex;gap:10px;margin-top:20px}
-.btn-pri{flex:1;padding:11px;background:linear-gradient(135deg,#8B7332,#C9A84C);color:#000;border:none;border-radius:8px;font-weight:700;font-size:13px;letter-spacing:.5px}
-.btn-sec{flex:1;padding:11px;background:transparent;color:#8A7E5A;border:1px solid rgba(201,168,76,.2);border-radius:8px;font-size:13px}
-.divider{height:1px;background:rgba(201,168,76,.1);margin:14px 0}
-
-@media(max-width:640px){.algo-grid{grid-template-columns:repeat(2,1fr)}.improve-grid{grid-template-columns:1fr}}
-</style>
+<title>Bankroll Algo | S&P 500 Daily Signal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div id="hdr"></div>
-<div id="main"></div>
-<div id="modal"></div>
+<!-- Preview Banner -->
+<div class="preview-banner" id="preview-banner">
+  <i class="ti ti-lock"></i>
+  PREVIEW MODE — SENSITIVE DETAILS ARE HIDDEN.
+  <button class="unlock-btn" onclick="openUnlock()">UNLOCK ACCESS</button>
+</div>
 
-<script>
-let S = null, connected = false, ui = { dir:'long', note:'', tab:'trades', jtext:'' }, etimer = null, lastJDate = null;
-
-// ── Load prefs ──
-try{const p=JSON.parse(localStorage.getItem('rb_ui')||'{}');if(p.dir)ui.dir=p.dir;if(p.tab)ui.tab=p.tab;}catch(e){}
-const savePrefs=()=>{try{localStorage.setItem('rb_ui',JSON.stringify({dir:ui.dir,tab:ui.tab}));}catch(e){}};
-
-// ── API ──
-const getState=async()=>{try{const r=await fetch('/api/rebound-state');connected=true;return r.json();}catch{connected=false;return null;}};
-const api=(m,p,b)=>fetch(p,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(r=>r.json()).catch(e=>console.error(e));
-
-const addTrade=async r=>{
-  const res=await api('POST','/api/rebound-trade',{result:r,direction:ui.dir,note:ui.note});
-  if(res?.error==='one_trade_per_day'){alert('One trade per day — already logged today.');return;}
-  ui.note='';refresh();
-};
-const forceW=async r=>{await api('POST','/api/rebound-trade',{result:r,direction:S?.pending?.direction,override:true});ui.note='';refresh();};
-const delTrade=async id=>{await api('DELETE',`/api/rebound-trade?id=${id}`);refresh();};
-const cancelP=async()=>{await api('DELETE','/api/rebound-trade?pending=1');refresh();};
-const saveJournal=async()=>{await api('POST','/api/rebound-journal',{text:ui.jtext});refresh();};
-const delJournal=async date=>{await api('DELETE',`/api/rebound-journal?date=${date}`);refresh();};
-const doReset=async()=>{if(!confirm('Reset all trade data?'))return;await api('POST','/api/rebound-reset');refresh();};
-const saveSettings=async()=>{
-  const g=id=>document.getElementById(id)?.value;
-  await api('PUT','/api/rebound-settings',{startBalance:+g('s_sb'),target:+g('s_tgt'),winAmount:+g('s_win'),lossAmount:+g('s_loss'),tpPts:+g('s_tp'),slPts:+g('s_sl'),contracts:+g('s_con'),trailingLimit:+g('s_tl'),dailyLossLimit:+g('s_dl')});
-  closeModal();refresh();
-};
-
-// ── Computed ──
-const todayKey=()=>new Date().toISOString().split('T')[0];
-const curBal=a=>a.trades.length?a.trades[a.trades.length-1].balance:a.settings.startBalance;
-const totPnL=a=>curBal(a)-a.settings.startBalance;
-const peakBal=a=>{let p=a.settings.startBalance;for(const t of a.trades)p=Math.max(p,t.balance);return p;};
-const ddFloor=a=>peakBal(a)-a.settings.trailingLimit;
-const curDD=a=>peakBal(a)-curBal(a);
-const dayTaken=a=>a.trades.some(t=>t.date===todayKey());
-const todayTrade=a=>a.trades.find(t=>t.date===todayKey());
-const todPnL=a=>{const t=todayTrade(a);return t&&t.result!=='no-trade'?t.pnl:0;};
-const rt=a=>a.trades.filter(t=>t.result!=='no-trade');
-const wr=a=>{const r=rt(a);return r.length?Math.round(r.filter(t=>t.result==='win').length/r.length*100):0;};
-function streak(a){const r=rt(a);if(!r.length)return{c:0,t:null};const last=r[r.length-1].result;let c=0;for(let i=r.length-1;i>=0&&r[i].result===last;i--)c++;return{c,t:last};}
-function acctStatus(a){
-  if(curBal(a)<=ddFloor(a))return'blown';
-  if(curBal(a)>=a.settings.target)return'passed';
-  if((curBal(a)-ddFloor(a))<400)return'warning';
-  return'active';
-}
-function calDays(a){
-  const now=new Date(),y=now.getFullYear(),mn=now.getMonth();
-  const f=new Date(y,mn,1),l=new Date(y,mn+1,0);
-  const dm={};
-  for(const t of a.trades){if(!dm[t.date])dm[t.date]=t.result==='no-trade'?'nt':0;if(t.result!=='no-trade')dm[t.date]=(typeof dm[t.date]==='number'?dm[t.date]:0)+t.pnl;}
-  const d=[];
-  for(let i=0;i<f.getDay();i++)d.push(null);
-  for(let i=1;i<=l.getDate();i++){const k=`${y}-${String(mn+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;const v=dm[k];d.push({i,k,today:k===todayKey(),type:v===undefined?'f':v==='nt'?'nt':v>0?'win':v<0?'loss':'nt'});}
-  return d;
-}
-function mStats(a){
-  const m={};
-  for(const t of a.trades){if(t.result==='no-trade')continue;const k=t.date.slice(0,7);if(!m[k])m[k]={w:0,l:0,pnl:0};if(t.result==='win')m[k].w++;else m[k].l++;m[k].pnl+=t.pnl;}
-  return Object.entries(m).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>({k,lbl:new Date(k+'-01').toLocaleString('default',{month:'short',year:'numeric'}),...v,n:v.w+v.l,rate:v.w+v.l?Math.round(v.w/(v.w+v.l)*100):0}));
-}
-
-// ── Helpers ──
-const clr=n=>n>0?'#00CC55':n<0?'#E03030':'#8A7E5A';
-const fB=n=>'$'+Math.round(n).toLocaleString();
-const fP=n=>(n>=0?'+$':'-$')+Math.round(Math.abs(n)).toLocaleString();
-const fD=d=>{const[,m,dy]=d.split('-');return`${m}/${dy}`;};
-const fTime=ts=>new Date(ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
-const elap=ts=>{const s=Math.round((Date.now()-ts)/1000);return s<60?`${s}s`:s<3600?`${Math.floor(s/60)}m ${s%60}s`:'1h+';};
-
-// ── Render manual log ──
-function renderManual(){
-  const el=document.getElementById('manual-inner');
-  if(!el)return;
-  el.innerHTML=`
-    <div class="dir-row">
-      <button class="dbtn ${ui.dir==='long'?'dbtn-long':''}" onclick="ui.dir='long';savePrefs();renderManual()">▲ LONG</button>
-      <button class="dbtn ${ui.dir==='short'?'dbtn-short':''}" onclick="ui.dir='short';savePrefs();renderManual()">▼ SHORT</button>
+<!-- Unlock Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeUnlock()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-lock-open" style="color:#534AB7"></i> Enter Access Code</div>
+      <button class="modal-close" onclick="closeUnlock()"><i class="ti ti-x"></i></button>
     </div>
-    <div class="res-row">
-      <button class="rbtn rbtn-win" onclick="addTrade('win')">WIN<span class="rbtn-sub">+$${S?.settings?.winAmount||460}</span></button>
-      <button class="rbtn rbtn-loss" onclick="addTrade('loss')">LOSS<span class="rbtn-sub">−$${S?.settings?.lossAmount||560}</span></button>
+    <p class="modal-sub">Enter your member password to unlock Take Profit, Stop Loss, and full confluences.</p>
+    <input type="password" id="pw-input" class="pw-input" placeholder="Enter password..." onkeydown="if(event.key==='Enter')checkPassword()">
+    <div class="pw-error" id="pw-error">Incorrect password. Try again.</div>
+    <button class="pw-submit" onclick="checkPassword()">
+      <span id="pw-btn-text">Unlock</span>
+    </button>
+  </div>
+</div>
+
+<!-- Main Container -->
+<div class="container">
+
+  <!-- Header -->
+  <div class="header-bar">
+    <div class="logo-icon"><i class="ti ti-currency-dollar"></i></div>
+    <div class="header-info">
+      <div class="header-name">BANKROLL ALGO</div>
+      <div class="header-sub">S&P 500 · Daily Signal</div>
     </div>
-    <input class="note-inp" placeholder="Add a note..." value="${ui.note}" oninput="ui.note=this.value">
-    <button class="ntbtn" onclick="addTrade('no-trade')">Log No-Trade Day</button>
-  `;
-}
-
-// ── Journal today ──
-function renderJToday(){
-  const el=document.getElementById('jtoday-inner');if(!el)return;
-  el.innerHTML=`
-    <textarea class="journal-ta" placeholder="How did the trade go? What did you see? What would you do differently?" oninput="ui.jtext=this.value">${ui.jtext}</textarea>
-    <button class="save-btn" onclick="saveJournal()">Save Note</button>
-  `;
-}
-
-// ── Main render ──
-function render(){
-  if(!S)return;
-  const a=S,s=a.settings;
-  const today=todayKey();
-  const status=acctStatus(a);
-  const bal=curBal(a),pnl=totPnL(a),floor=ddFloor(a);
-  const dd=curDD(a),ddPct=Math.min(100,dd/s.trailingLimit*100);
-  const ddC=ddPct>80?'#E03030':ddPct>50?'#C9A84C':'#00CC55';
-  const tp=todPnL(a);
-  const progressPct=Math.min(100,Math.max(0,(bal-s.startBalance)/(s.target-s.startBalance)*100));
-  const wins=rt(a).filter(t=>t.result==='win').length;
-  const losses=rt(a).filter(t=>t.result==='loss').length;
-  const sk=streak(a);
-  const smap={active:['● ACTIVE','s-active'],warning:['⚠ WARNING','s-warning'],blown:['✕ BLOWN','s-blown'],passed:['✓ PASSED','s-passed']};
-
-  if(lastJDate!==today){const je=(a.journal||[]).find(j=>j.date===today);ui.jtext=je?.text||'';lastJDate=today;}
-
-  // Header
-  document.getElementById('hdr').innerHTML=`
-    <div class="hdr">
-      <div>
-        <div class="hdr-logo">⚡ The Rebound</div>
-        <div class="hdr-sub">NQ Futures · 1 Contract · $20/pt</div>
-      </div>
-      <div class="hdr-r">
-        <span class="conn"><span class="dot ${connected?'dot-on':'dot-off'}"></span>${connected?'LIVE':'OFFLINE'}</span>
-        <span class="status-badge ${smap[status][1]}">${smap[status][0]}</span>
-        <button class="ibtn" onclick="openModal()">⚙ Settings</button>
+    <div class="header-perf">
+      <div class="perf-label">June 2026 Performance</div>
+      <div class="perf-badges">
+        <span class="badge-w" id="w-badge">2W</span>
+        <span class="badge-l" id="l-badge">1L</span>
+        <span class="perf-wr-label">Win Rate</span>
       </div>
     </div>
-    ${status==='warning'?`<div class="warn-banner">⚠ Drawdown warning — $${Math.round(bal-floor).toLocaleString()} remaining before floor.</div>`:''}
-    ${status==='blown'?`<div class="blown-banner">✕ Trailing drawdown violated — account blown.</div>`:''}
-  `;
-
-  // Today's trade card
-  const done=dayTaken(a)&&!a.pending;
-  const tt=todayTrade(a);
-  let tcHTML;
-  if(a.pending){
-    const p=a.pending,lng=p.direction==='long';
-    tcHTML=`<div class="trade-card tc-pending">
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <div class="${lng?'dir-long':'dir-short'}">${lng?'▲ LONG':'▼ SHORT'}</div>
-        <div class="tc-info">
-          <div class="tc-entry"><span>ENTRY</span>${p.entry?p.entry.toFixed(2):'—'}</div>
-          <div class="tc-levels">TP <span style="color:#00CC55">${p.tp?p.tp.toFixed(2):'—'}</span> &nbsp;·&nbsp; SL <span style="color:#E03030">${p.sl?p.sl.toFixed(2):'—'}</span></div>
-          <div class="tc-time">🕐 Signal at ${fTime(p.timestamp)}</div>
-        </div>
-        <div class="elapsed" id="ebadge">⏳ ${elap(p.timestamp)}</div>
+    <div class="header-bar-right">
+      <div class="win-bar-wrap">
+        <div class="win-bar-bg"><div class="win-bar-fill" id="win-bar" style="width:67%"></div></div>
+        <span class="win-pct" id="win-pct-txt">67%</span>
       </div>
-      <div class="tc-btns">
-        <button class="btn-win" onclick="forceW('win')">✓ WIN</button>
-        <button class="btn-loss" onclick="forceW('loss')">✗ LOSS</button>
-        <button class="btn-cancel" onclick="cancelP()">✕ Cancel</button>
-      </div>
-    </div>`;
-  } else if(done&&tt){
-    const r=tt.result,lng=tt.direction==='long',isWin=r==='win',isNT=r==='no-trade';
-    tcHTML=`<div class="trade-card ${isNT?'tc-idle':isWin?'tc-done-win':'tc-done-loss'}">
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <div style="font-size:24px;opacity:.4">🔒</div>
-        <div class="tc-info">
-          <div style="font-size:13px;font-weight:700;letter-spacing:.5px;margin-bottom:2px">Day Complete</div>
-          ${tt.direction?`<span class="${tt.direction==='long'?'dir-long':'dir-short'}" style="font-size:10px;padding:2px 10px;display:inline-block;margin-bottom:4px">${tt.direction==='long'?'▲ LONG':'▼ SHORT'}</span>`:''}
-          ${tt.entry?`<div class="tc-levels">Entry <span style="color:#F0ECD8;font-weight:600">${tt.entry.toFixed(2)}</span> · TP <span style="color:#00CC55">${tt.tp?tt.tp.toFixed(2):'—'}</span> · SL <span style="color:#E03030">${tt.sl?tt.sl.toFixed(2):'—'}</span></div>`:''}
-          <div class="tc-time">🕐 Taken at ${fTime(tt.timestamp)}</div>
-          ${tt.note?`<div style="font-size:11px;color:#8A7E5A;font-style:italic;margin-top:3px">"${tt.note}"</div>`:''}
-        </div>
-      </div>
-      <div class="done-result">
-        <div class="done-lbl">${isNT?'Logged':'Result'}</div>
-        <div class="done-val" style="color:${isNT?'#8A7E5A':isWin?'#00CC55':'#E03030'}">${isNT?'No Trade':isWin?`WIN ${fP(s.winAmount)}`:`LOSS ${fP(-s.lossAmount)}`}</div>
-        <div class="done-sub">First signal · locked for today</div>
-      </div>
-    </div>`;
-  } else {
-    tcHTML=`<div class="trade-card tc-idle">
-      <div class="tc-idle-lbl">⦿ Waiting for signal...</div>
-      <div class="tc-btns">
-        <button class="btn-win" onclick="addTrade('win')">WIN <span style="font-size:10px;opacity:.6">+$${s.winAmount}</span></button>
-        <button class="btn-loss" onclick="addTrade('loss')">LOSS <span style="font-size:10px;opacity:.6">−$${s.lossAmount}</span></button>
-        <button class="btn-cancel" onclick="addTrade('no-trade')">No Trade</button>
-      </div>
-    </div>`;
-  }
+    </div>
+  </div>
 
-  // Calendar
-  const now=new Date();
-  const cd=calDays(a);
-  const calCells=cd.map(c=>{
-    if(!c)return'<div class="cal-empty"></div>';
-    const cls=c.type==='win'?'cal-win':c.type==='loss'?'cal-loss':c.type==='nt'?'cal-nt':'cal-empty';
-    return`<div class="cal-cell ${cls}${c.today?' cal-today':''}">${c.i}</div>`;
-  }).join('');
+  <!-- Access Badge -->
+  <div class="access-row">
+    <div class="access-badge" id="access-badge">
+      <i class="ti ti-eye-off"></i> Preview Mode
+    </div>
+    <div class="signal-time" id="signal-time"></div>
+  </div>
 
-  // Trade history
-  const tSrc=[...a.trades].reverse();
-  const tradesTab=tSrc.length?`<table><thead><tr><th>Date</th><th>Dir</th><th>Entry</th><th>Result</th><th>P&L</th><th>Balance</th><th></th></tr></thead><tbody>
-    ${tSrc.map(t=>`<tr>
-      <td style="color:#8A7E5A;white-space:nowrap">${fD(t.date)}</td>
-      <td>${t.direction?`<span class="tag-${t.direction}">${t.direction.toUpperCase()}</span>`:'<span style="color:#8A7E5A">—</span>'}</td>
-      <td style="font-family:monospace;color:#F0ECD8">${t.entry?t.entry.toFixed(2):'—'}</td>
-      <td style="color:${t.result==='win'?'#00CC55':t.result==='loss'?'#E03030':'#8A7E5A'};font-weight:700">${t.result==='win'?'✓ WIN':t.result==='loss'?'✗ LOSS':'—'}</td>
-      <td style="color:${clr(t.pnl)};font-weight:700;white-space:nowrap">${t.result==='no-trade'?'—':fP(t.pnl)}</td>
-      <td style="color:#C9A84C;white-space:nowrap">${fB(t.balance)}</td>
-      <td><button class="delbtn" onclick="delTrade(${t.id})">✕</button></td>
-    </tr>`).join('')}</tbody></table>`:'<div class="empty">No trades yet.</div>';
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('signal')">Signal</div>
+    <div class="tab" onclick="switchTab('performance')">Performance</div>
+    <div class="tab" onclick="switchTab('market')">Market Data</div>
+  </div>
 
-  const ms=mStats(a);
-  const monthTab=ms.length?`<table><thead><tr><th>Month</th><th>Trades</th><th>W/L</th><th>P&L</th><th>Win %</th></tr></thead><tbody>
-    ${[...ms].reverse().map(m=>`<tr>
-      <td style="font-weight:600;color:#C9A84C">${m.lbl}</td>
-      <td style="color:#8A7E5A">${m.n}</td>
-      <td><span style="color:#00CC55">${m.w}W</span>/<span style="color:#E03030">${m.l}L</span></td>
-      <td style="color:${clr(m.pnl)};font-weight:700">${fP(m.pnl)}</td>
-      <td style="color:${m.rate>=60?'#00CC55':m.rate>=50?'#C9A84C':'#E03030'};font-weight:700">${m.rate}%</td>
-    </tr>`).join('')}</tbody></table>`:'<div class="empty">No monthly data yet.</div>';
+  <!-- ===== SIGNAL TAB ===== -->
+  <div id="tab-signal" class="tab-content active">
+    <div class="signal-top-row">
+      <div class="active-pill"><div class="active-dot"></div>Active</div>
+      <div class="date-str" id="today-date"></div>
+    </div>
+    <!-- Session toggle -->
+    <div style="display:flex;gap:0;margin-bottom:14px;background:var(--surface-2);border:0.5px solid var(--border-med);border-radius:10px;padding:3px">
+      <button id="sess-ny" onclick="switchSession('ny')"
+        style="flex:1;padding:9px;border-radius:8px;border:none;background:var(--purple);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em">
+        NY Session
+      </button>
+      <button id="sess-asia" onclick="switchSession('asia')"
+        style="flex:1;padding:9px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em">
+        Asia Session
+      </button>
+    </div>
 
-  // Journal
-  const je=(a.journal||[]).find(j=>j.date===today);
-  const pastJ=[...(a.journal||[])].filter(j=>j.date!==today).sort((x,y)=>y.date.localeCompare(x.date));
-  const pastJHTML=pastJ.map(j=>{
-    const jt=a.trades.find(t=>t.date===j.date);
-    const[,jm,jd]=j.date.split('-');
-    const jmon=new Date(j.date+'T12:00').toLocaleString('default',{month:'short'});
-    return`<div class="jentry">
-      <div class="jday"><div class="jday-num">${jd}</div><div class="jday-mon">${jmon}</div></div>
-      <div class="jbody">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          ${jt&&jt.result!=='no-trade'?`<span style="font-size:10px;font-weight:700;color:${jt.result==='win'?'#00CC55':'#E03030'}">${jt.result==='win'?'WIN':'LOSS'}</span>`:''}
-          ${jt?.direction?`<span class="tag-${jt.direction}" style="font-size:9px">${jt.direction.toUpperCase()}</span>`:''}
-          <button class="jdel" onclick="delJournal('${j.date}')">✕</button>
-        </div>
-        <div class="jnote">${j.text}</div>
-      </div>
-    </div>`;
-  }).join('');
+    <div class="subtab-row">
+      <div class="subtab active">ES Futures</div>
+      <div class="subtab">SPY Options</div>
+    </div>
 
-  document.getElementById('main').innerHTML=`
-    <!-- PROGRESS -->
-    <div class="progress-section">
-      <div class="prog-top">
+    <!-- Loading state -->
+    <div id="signal-loading" class="signal-loading">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading today's signal...</div>
+    </div>
+
+    <div id="signal-body" style="display:none">
+      <div class="grid-main">
+        <!-- Left -->
         <div>
-          <div style="font-size:10px;color:#8A7E5A;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">Account Balance</div>
-          <div class="prog-bal">${fB(bal)}</div>
-          <div style="font-size:12px;color:${clr(pnl)};margin-top:4px;font-weight:600">${fP(pnl)} total P&L</div>
+          <div class="card" style="margin-bottom:12px">
+            <div class="card-label">Signal Direction</div>
+            <div class="direction-box">
+              <div class="dir-icon" id="dir-icon"><i class="ti ti-trending-down" style="color:#A32D2D;font-size:18px"></i></div>
+              <div class="dir-text" id="dir-text">SHORT</div>
+              <div class="dir-sub" id="dir-sub">Sell Signal</div>
+              <div class="dir-instrument">S&P 500 <span>ES · CME</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-label">Risk / Reward</div>
+            <div class="rr-row">
+              <span class="rr-label">Ratio</span>
+              <div class="rr-locked lockable" id="rr-ratio-wrap">
+                <div class="locked-state"><i class="ti ti-lock"></i><span>Members</span></div>
+                <div class="unlocked-state rr-val" id="rr-ratio">—</div>
+              </div>
+            </div>
+            <div class="rr-row">
+              <span class="rr-label tp-color">Target</span>
+              <div class="rr-locked lockable" id="rr-target-wrap">
+                <div class="locked-state"><i class="ti ti-lock"></i><span>Members</span></div>
+                <div class="unlocked-state rr-val tp-color" id="rr-target">—</div>
+              </div>
+            </div>
+            <div class="rr-row">
+              <span class="rr-label sl-color">Risk</span>
+              <div class="rr-locked lockable" id="rr-risk-wrap">
+                <div class="locked-state"><i class="ti ti-lock"></i><span>Members</span></div>
+                <div class="unlocked-state rr-val sl-color" id="rr-risk">—</div>
+              </div>
+            </div>
+            <div class="rr-row"><span class="rr-label">Entry</span><span class="rr-val">Market Open</span></div>
+          </div>
         </div>
-        <div class="prog-target">
-          <div>Target</div>
-          <span>${fB(s.target)}</span>
-          <div style="margin-top:8px;font-size:11px">Need ${fP(s.target-bal)}</div>
+
+        <!-- Middle -->
+        <div>
+          <div class="card">
+            <div class="entry-card">
+              <div><div class="entry-label">Entry</div><div class="entry-val" id="entry-session-val">NYSE Market Open</div></div>
+              <div class="entry-badge">Market Order</div>
+            </div>
+            <div class="tp-sl-grid">
+              <div class="tp-card">
+                <div class="tp-label">Take Profit <i class="ti ti-lock" style="font-size:11px" id="tp-lock-icon"></i></div>
+                <div class="lockable" id="tp-wrap">
+                  <div class="locked-state">
+                    <div class="locked-pill"><i class="ti ti-lock"></i><span>Members only</span></div>
+                    <div class="locked-blur tp-color">5,612</div>
+                  </div>
+                  <div class="unlocked-state">
+                    <div class="unlocked-price tp-color" id="tp-val">—</div>
+                  </div>
+                </div>
+              </div>
+              <div class="sl-card">
+                <div class="sl-label">Stop Loss <i class="ti ti-lock" style="font-size:11px" id="sl-lock-icon"></i></div>
+                <div class="lockable" id="sl-wrap">
+                  <div class="locked-state">
+                    <div class="locked-pill"><i class="ti ti-lock"></i><span>Members only</span></div>
+                    <div class="locked-blur sl-color">5,578</div>
+                  </div>
+                  <div class="unlocked-state">
+                    <div class="unlocked-price sl-color" id="sl-val">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="conf-header">
+              <span class="conf-title">Confluences</span>
+              <span class="conf-confirmed"><i class="ti ti-circle-check"></i> Confirmed</span>
+            </div>
+            <div class="conf-item lockable" id="conf-1-wrap">
+              <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px" id="conf-1-blur">Resistance level</span></div>
+              <div class="unlocked-state conf-item-text"><i class="ti ti-circle-check" style="color:#0F6E56"></i><span id="conf-1-val">—</span></div>
+              <span class="conf-members" id="conf-1-badge">Members Only</span>
+            </div>
+            <div class="conf-item lockable" id="conf-2-wrap">
+              <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px" id="conf-2-blur">Volume divergence</span></div>
+              <div class="unlocked-state conf-item-text"><i class="ti ti-circle-check" style="color:#0F6E56"></i><span id="conf-2-val">—</span></div>
+              <span class="conf-members" id="conf-2-badge">Members Only</span>
+            </div>
+            <div class="conf-item lockable" id="conf-3-wrap">
+              <div class="locked-state conf-item-text"><i class="ti ti-lock"></i><span class="locked-blur" style="font-size:13px" id="conf-3-blur">RSI overbought</span></div>
+              <div class="unlocked-state conf-item-text"><i class="ti ti-circle-check" style="color:#0F6E56"></i><span id="conf-3-val">—</span></div>
+              <span class="conf-members" id="conf-3-badge">Members Only</span>
+            </div>
+            <div class="conf-item conf-visible">
+              <div class="conf-item-text">
+                <div class="conf-check"><i class="ti ti-check" style="font-size:11px;color:#0F6E56"></i></div>
+                <span id="conf-public">Overnight Range</span>
+              </div>
+            </div>
+
+            <!-- Market context panel -->
+            <div id="mkt-ctx-wrap" style="display:none;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border)">
+              <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0" onclick="toggleMktCtx()">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <i class="ti ti-radar" style="font-size:14px;color:var(--text-muted)" aria-hidden="true"></i>
+                  <span style="font-size:12px;color:var(--text-muted)">What's affecting this signal</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span id="news-bias-badge" style="display:none;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:500"></span>
+                  <i class="ti ti-chevron-down" id="mkt-ctx-chev" style="font-size:13px;color:var(--text-muted)" aria-hidden="true"></i>
+                </div>
+              </div>
+              <div id="mkt-ctx-body" style="display:none;padding-top:10px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                  <div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border)">
+                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Market</div>
+                    <div id="ctx-market-rows"></div>
+                  </div>
+                  <div style="background:var(--bg);border-radius:8px;padding:10px;border:0.5px solid var(--border)">
+                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">SPY walls</div>
+                    <div id="ctx-walls-rows"></div>
+                  </div>
+                </div>
+                <div id="ctx-news-rows"></div>
+                <div id="ctx-bias-row" style="display:none;margin-top:6px;padding:8px 10px;border-radius:8px;display:flex;align-items:center;gap:6px">
+                  <i class="ti ti-alert-triangle" style="font-size:13px" aria-hidden="true"></i>
+                  <span id="ctx-bias-text" style="font-size:12px;font-weight:500"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Admin panel -->
+            <div id="admin-panel" style="display:none;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)">
+              <div class="card-label" style="color:#534AB7">Admin Controls</div>
+              <button class="gen-btn" onclick="adminRegenerateSignal()" id="regen-btn">
+                <i class="ti ti-refresh"></i>
+                <span id="regen-btn-text">Regenerate Signal Now</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right -->
+        <div>
+          <div class="card" style="margin-bottom:12px">
+            <div class="status-header">
+              <span class="card-label" style="margin-bottom:0">Algo Status</span>
+              <span class="live-dot"><div class="dot"></div>Live</span>
+            </div>
+            <div class="activity-bars" id="activity-bars"></div>
+            <div class="status-row"><span class="status-key">Model</span><span class="status-val">BANKROLL v1.0</span></div>
+            <div class="status-row"><span class="status-key">Timeframe</span><span class="status-val">1m / 5m / 15m</span></div>
+            <div class="status-row"><span class="status-key">Bias</span><span class="status-val sl-color" id="bias-txt">Bearish</span></div>
+            <div class="status-row"><span class="status-key">Confidence</span><span class="status-val purple" id="conf-lvl">High</span></div>
+          </div>
+          <div class="card">
+            <div class="cal-header">
+              <span class="cal-title">June 2026</span>
+              <span class="cal-hint">tap day to edit</span>
+            </div>
+            <div class="cal-grid" id="cal-grid"></div>
+            <div class="cal-stats" id="cal-stats"></div>
+          </div>
         </div>
       </div>
-      <div class="prog-bar-wrap"><div class="prog-bar-fill" style="width:${progressPct}%"></div></div>
-      <div class="prog-labels"><span>$${(s.startBalance/1000).toFixed(0)}K Start</span><span>${progressPct.toFixed(1)}% to target</span><span>$${(s.target/1000).toFixed(0)}K Target</span></div>
     </div>
 
-    ${tcHTML}
-
-    <!-- METRIC CARDS -->
-    <div class="cards">
-      <div class="card">
-        <div class="card-lbl">Win Rate</div>
-        <div class="card-val" style="color:${wr(a)>=60?'#00CC55':wr(a)>=50?'#C9A84C':'#E03030'}">${wr(a)}%</div>
-        <div class="card-sub">${wins}W / ${losses}L · ${rt(a).length} trades</div>
-      </div>
-      <div class="card">
-        <div class="card-lbl">Today's P&L</div>
-        <div class="card-val" style="color:${clr(tp)}">${tp===0?'—':fP(tp)}</div>
-        <div class="card-sub">${todayTrade(a)?'Day complete':'No trade today'}</div>
-      </div>
-      <div class="card">
-        <div class="card-lbl">Drawdown Remaining</div>
-        <div class="card-val" style="color:${ddC}">${fB(bal-floor)}</div>
-        <div class="prog-mini">
-          <div class="prog-mini-row"><span>Used</span><span>${Math.round(ddPct)}%</span></div>
-          <div class="prog-mini-bar"><div class="prog-mini-fill" style="width:${ddPct}%;background:${ddC}"></div></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-lbl">Streak</div>
-        <div class="card-val" style="color:${sk.t==='win'?'#00CC55':sk.t==='loss'?'#E03030':'#8A7E5A'}">${sk.c>0?sk.c+'×':'—'}</div>
-        <div class="card-sub">${sk.t?sk.t.toUpperCase():'No trades yet'}</div>
+    <!-- No signal yet state -->
+    <div id="signal-empty" style="display:none">
+      <div class="empty-state">
+        <i class="ti ti-clock" style="font-size:32px;color:#534AB7;margin-bottom:12px"></i>
+        <div class="empty-title">Signal Pending</div>
+        <div class="empty-sub">Today's signal generates automatically at 6:00 AM PT. Check back before market open.</div>
       </div>
     </div>
+  </div>
 
-    <!-- THE ALGO — BACKTEST STATS -->
-    <div class="section">
-      <div class="section-title">⚡ The Algo — <span>Backtested Performance (NQ · 23pt TP · 28pt SL)</span></div>
-      <div class="algo-grid">
-        <div class="astat"><div class="astat-val">58%</div><div class="astat-lbl">Win Rate</div></div>
-        <div class="astat"><div class="astat-val">128</div><div class="astat-lbl">Signals</div></div>
-        <div class="astat"><div class="astat-val">1.13</div><div class="astat-lbl">Profit Factor</div></div>
-        <div class="astat"><div class="astat-val" style="color:#00CC55">$460</div><div class="astat-lbl">Avg Win</div></div>
-        <div class="astat"><div class="astat-val" style="color:#E03030">$560</div><div class="astat-lbl">Avg Loss</div></div>
-        <div class="astat"><div class="astat-val">$31</div><div class="astat-lbl">Expectancy/Trade</div></div>
+  <!-- ===== PERFORMANCE TAB ===== -->
+  <div id="tab-performance" class="tab-content">
+    <div class="month-filter">
+      <button class="mf-btn active" onclick="setMonthFilter(this)">All Time</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">Jan</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">Feb</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">Mar</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">Apr</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">May</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">Jun</button>
+    </div>
+    <div class="perf-stats-grid">
+      <div class="perf-stat-card"><div class="psc-label">Total Signals</div><div class="psc-val">85</div><div class="psc-sub">62W / 23L</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Win Rate</div><div class="psc-val tp-color">72.9%</div><div class="psc-sub">62 of 85</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Profit Factor</div><div class="psc-val">2.21</div><div class="psc-sub">Gross profit / loss</div></div>
+    </div>
+    <div class="perf-stats-grid" style="margin-top:12px">
+      <div class="perf-stat-card"><div class="psc-label">Net P&L (1 contract)</div><div class="psc-val tp-color">+$15,250</div><div class="psc-sub">+305 pts</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Avg Win (1 contract)</div><div class="locked-bar"><i class="ti ti-lock"></i> Members Only</div><div class="psc-sub">+9 pts</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Avg Loss (1 contract)</div><div class="locked-bar sl-bar"><i class="ti ti-lock"></i> Members Only</div><div class="psc-sub">-11 pts</div></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-label">Trade History</div>
+      <div class="trade-history" id="trade-history"></div>
+    </div>
+  </div>
+
+  <!-- ===== MARKET DATA TAB ===== -->
+  <div id="tab-market" class="tab-content">
+    <div class="card">
+      <div class="market-live-row">
+        <div class="live-yahoo"><div class="dot"></div>Live · Yahoo Finance</div>
+        <span class="market-ticker">ES=F</span>
       </div>
-      <div class="algo-note">
-        Backtest: 74 wins / 54 losses across 128 signals. Expectancy of $31.60/trade means every signal taken has positive expected value. Edge is real — the key is <strong style="color:#C9A84C">consistency and patience</strong>. One trade per day, first signal only.
+      <div class="market-grid-2" style="margin-top:16px">
+        <div class="market-card"><div class="market-card-label">Overnight Range</div><div class="locked-blur" style="font-size:20px;font-weight:500;color:var(--text-primary)">5,529 – 5,587</div><div class="market-members"><i class="ti ti-lock"></i> Members Only</div></div>
+        <div class="market-card green-bg"><div class="market-card-label tp-color">Overnight Trend</div><div class="locked-blur tp-color" style="font-size:20px;font-weight:500">+0.42%</div><div class="market-members tp-color"><i class="ti ti-lock"></i> Members Only</div></div>
+      </div>
+      <div class="market-grid-2" style="margin-top:12px">
+        <div class="market-card"><div class="market-card-label">ES Current</div><div class="locked-blur" style="font-size:20px;font-weight:500;color:var(--text-primary)">5,561.25</div><div class="market-members"><i class="ti ti-lock"></i> Members Only</div></div>
+        <div class="market-card"><div class="market-card-label">Avg Volume</div><div class="locked-blur" style="font-size:20px;font-weight:500;color:var(--text-primary)">284K</div><div class="market-members"><i class="ti ti-lock"></i> Members Only</div></div>
+      </div>
+      <div class="market-card red-bg" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div><div class="market-card-label">Prev Day Last 15-Min Close</div><div class="locked-blur" style="font-size:18px;font-weight:500;color:var(--text-primary)">5,574.50</div><div class="market-members sl-color"><i class="ti ti-lock"></i> Members Only</div></div>
+        <div style="text-align:right"><div class="locked-blur sl-color" style="font-size:22px;font-weight:500">-0.18%</div><div style="font-size:12px;color:var(--text-muted)">vs open</div></div>
+      </div>
+      <div style="margin-top:24px">
+        <div class="card-label">ES Overnight Price (15-min)</div>
+        <div style="position:relative;height:200px"><canvas id="priceChart"></canvas></div>
+        <div class="chart-legend">
+          <span class="legend-item"><span class="leg-dot" style="background:#AFA9EC"></span>OH</span>
+          <span class="legend-item"><span class="leg-dot" style="background:#F09595"></span>OL</span>
+          <span class="legend-item"><span class="leg-dot" style="background:#FAC775"></span>PD Close</span>
+          <span class="legend-item"><span class="leg-dot" style="background:#534AB7"></span>ES Price</span>
+        </div>
+      </div>
+      <div style="margin-top:24px">
+        <div class="card-label">Overnight Volume</div>
+        <div style="position:relative;height:140px"><canvas id="volChart"></canvas></div>
       </div>
     </div>
+  </div>
 
-    <!-- IMPROVE YOUR REBOUND -->
-    <div class="section">
-      <div class="section-title">📈 Improve The Rebound</div>
-      <div class="improve-grid">
-        <div class="improve-item">
-          <div class="improve-title">EMA Slope Matters</div>
-          <div class="improve-text">Steeper slope = stronger trend. CI below 38 signals strong trend — highest quality setups.</div>
-        </div>
-        <div class="improve-item">
-          <div class="improve-title">Pre-Trend Quality</div>
-          <div class="improve-text">More pre-trend bars before pullback = more conviction. Minimum 3 bars, sweet spot is 5-8.</div>
-        </div>
-        <div class="improve-item">
-          <div class="improve-title">Skip Filters</div>
-          <div class="improve-text">Trust the CHOP and DBL filters. Forced signals in choppy markets are the main source of losses.</div>
-        </div>
-        <div class="improve-item">
-          <div class="improve-title">Time of Day</div>
-          <div class="improve-text">NY open (9:30-10:30 AM ET) and London close (11 AM-12 PM ET) have the best momentum for this setup.</div>
-        </div>
-      </div>
+  <!-- ===== JOURNAL TAB ===== -->
+  <div id="tab-journal" class="tab-content">
+    <div class="journal-header">
+      <i class="ti ti-book-2" style="color:#534AB7;font-size:18px"></i>
+      <span class="journal-title">Community Trade Journal</span>
+      <span class="journal-readonly">Read Only</span>
     </div>
+    <div class="journal-grid" id="journal-grid"></div>
+    <div class="journal-cta"><i class="ti ti-lock"></i> Join to add your own trade entries and track your personal performance.</div>
+  </div>
 
-    <!-- MANUAL LOG + CALENDAR -->
-    <div style="display:grid;grid-template-columns:280px 1fr;gap:14px;margin-bottom:20px">
-      <div class="section" style="margin-bottom:0">
-        <div class="section-title">Manual Log</div>
-        <div id="manual-inner"></div>
-      </div>
-      <div class="section" style="margin-bottom:0">
-        <div class="section-title">${now.toLocaleString('default',{month:'long',year:'numeric'})}</div>
-        <div class="cal-hdr">${['SUN','MON','TUE','WED','THU','FRI','SAT'].map(d=>`<div class="cal-dn">${d}</div>`).join('')}</div>
-        <div class="cal-grid">${calCells}</div>
-      </div>
-    </div>
+</div>
 
-    <!-- HISTORY -->
-    <div class="section">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div class="section-title" style="margin-bottom:0">Trade History</div>
-        <div class="tabs">
-          <button class="tab ${ui.tab==='trades'?'tab-on':''}" onclick="ui.tab='trades';savePrefs();render()">Trades</button>
-          <button class="tab ${ui.tab==='monthly'?'tab-on':''}" onclick="ui.tab='monthly';savePrefs();render()">Monthly</button>
-        </div>
-      </div>
-      ${ui.tab==='trades'?tradesTab:monthTab}
-    </div>
-
-    <!-- JOURNAL -->
-    <div class="section">
-      <div class="section-title">Trade Journal</div>
-      <div style="font-size:11px;color:#8A7E5A;margin-bottom:12px;letter-spacing:.5px">Today · ${today}</div>
-      <div id="jtoday-inner"></div>
-      ${pastJHTML?`<div style="margin-top:8px">${pastJHTML}</div>`:'<div class="empty" style="padding:20px">No past entries yet.</div>'}
-    </div>
-
-    <div style="text-align:center;padding:16px 0 8px;font-size:10px;color:rgba(201,168,76,.2);letter-spacing:2px;text-transform:uppercase">
-      The Rebound · NQ Futures · Built to win
-    </div>
-  `;
-
-  renderManual();
-  renderJToday();
-  if(a.pending)startTimer();
-  else if(etimer){clearInterval(etimer);etimer=null;}
-}
-
-function startTimer(){
-  if(etimer)clearInterval(etimer);
-  etimer=setInterval(()=>{
-    const el=document.getElementById('ebadge');
-    if(el&&S?.pending)el.textContent='⏳ '+elap(S.pending.timestamp);
-  },1000);
-}
-
-// ── Modal ──
-function openModal(){
-  if(!S)return;
-  const s=S.settings;
-  document.getElementById('modal').innerHTML=`
-    <div class="overlay" onclick="if(event.target===this)closeModal()">
-      <div class="modal">
-        <h2>⚙ Settings</h2>
-        <div class="two-col">
-          <div class="fg"><label class="fl">Start Balance</label><input class="fi" id="s_sb" value="${s.startBalance}"></div>
-          <div class="fg"><label class="fl">Target</label><input class="fi" id="s_tgt" value="${s.target}"></div>
-        </div>
-        <div class="two-col">
-          <div class="fg"><label class="fl">Win Amount ($)</label><input class="fi" id="s_win" value="${s.winAmount}"></div>
-          <div class="fg"><label class="fl">Loss Amount ($)</label><input class="fi" id="s_loss" value="${s.lossAmount}"></div>
-        </div>
-        <div class="two-col">
-          <div class="fg"><label class="fl">TP (pts)</label><input class="fi" id="s_tp" value="${s.tpPts}"></div>
-          <div class="fg"><label class="fl">SL (pts)</label><input class="fi" id="s_sl" value="${s.slPts}"></div>
-        </div>
-        <div class="two-col">
-          <div class="fg"><label class="fl">Contracts</label><input class="fi" id="s_con" value="${s.contracts}"></div>
-          <div class="fg"><label class="fl">Trailing Limit ($)</label><input class="fi" id="s_tl" value="${s.trailingLimit}"></div>
-        </div>
-        <div class="fg"><label class="fl">Daily Loss Limit ($)</label><input class="fi" id="s_dl" value="${s.dailyLossLimit}"></div>
-        <div class="divider"></div>
-        <div class="mbtns">
-          <button class="btn-pri" onclick="saveSettings()">Save</button>
-          <button class="btn-sec" onclick="closeModal()">Cancel</button>
-        </div>
-        <div style="margin-top:14px;text-align:center">
-          <button onclick="doReset()" style="background:none;border:none;color:#E03030;font-size:11px;cursor:pointer;opacity:.6">Reset all trade data</button>
-        </div>
-      </div>
-    </div>`;
-}
-const closeModal=()=>document.getElementById('modal').innerHTML='';
-
-// ── Refresh loop ──
-let lastHash='';
-async function refresh(){
-  S=await getState();
-  if(!S)return;
-  const h=JSON.stringify(S);
-  if(h!==lastHash){lastHash=h;render();}
-}
-
-refresh();
-setInterval(refresh,5000);
-</script>
+<script src="app.js"></script>
 </body>
 </html>
