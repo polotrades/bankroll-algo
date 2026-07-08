@@ -1,18 +1,17 @@
 {
   "functions": { "api/*.js": { "maxDuration": 30 } },
   "rewrites": [
-    { "source": "/webhook", "destination": "/api/rebound-webhook" },
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    { "source": "/webhook",              "destination": "/api/rebound?action=webhook"  },
+    { "source": "/api/rebound-state",    "destination": "/api/rebound?action=state"    },
+    { "source": "/api/rebound-trade",    "destination": "/api/rebound?action=trade"    },
+    { "source": "/api/rebound-journal",  "destination": "/api/rebound?action=journal"  },
+    { "source": "/api/rebound-settings", "destination": "/api/rebound?action=settings" },
+    { "source": "/api/rebound-reset",    "destination": "/api/rebound?action=reset"    }
   ],
   "headers": [
     {
       "source": "/index.html",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
     }
-  ],
-  "crons": [
-    { "path": "/api/generate-signal",        "schedule": "0 13 * * 1-5" },
-    { "path": "/api/generate-london-signal", "schedule": "45 7 * * 1-5" },
-    { "path": "/api/generate-asia-signal",   "schedule": "0 23 * * 0-4" }
   ]
 }
