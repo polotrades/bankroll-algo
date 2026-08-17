@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polo's Trading Journal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e14;
+    --card: #16161f;
+    --card2: #1c1c28;
+    --border: rgba(255,255,255,0.07);
+    --text: #f0f0f5;
+    --muted: #6b6b80;
+    --green: #17a06a;
+    --green-light: rgba(23,160,106,0.12);
+    --red: #c94040;
+    --red-light: rgba(201,64,64,0.12);
+    --gold: #c9a040;
+    --gold-light: rgba(201,160,64,0.12);
+    --purple: #534AB7;
+    --purple-light: rgba(83,74,183,0.15);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 20px 16px 60px; }
+
+  .header { text-align: center; margin-bottom: 28px; padding-top: 12px; }
+  .header-icon { width: 48px; height: 48px; background: var(--purple); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 12px; }
+  .header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; }
+  .header p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  .tabs { display: flex; gap: 6px; background: var(--card); border-radius: 12px; padding: 4px; margin-bottom: 20px; }
+  .tab { flex: 1; padding: 9px; border: none; border-radius: 9px; background: none; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+  .tab.active { background: var(--purple); color: #fff; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── FORM ── */
+  .form-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 14px; }
+  .form-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; background: var(--card2); border: 1px solid var(--border); border-radius: 9px;
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 10px 12px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--purple); }
+  .form-group textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+  .form-group select option { background: #1c1c28; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  .emoji-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+  .emoji-btn { background: var(--card2); border: 2px solid var(--border); border-radius: 10px; padding: 8px 12px; font-size: 18px; cursor: pointer; transition: all 0.15s; }
+  .emoji-btn.selected { border-color: var(--purple); background: var(--purple-light); }
+
+  .rating-row { display: flex; gap: 6px; }
+  .rating-btn { flex: 1; padding: 8px 4px; background: var(--card2); border: 2px solid var(--border); border-radius: 9px; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .rating-btn.selected { border-color: var(--purple); color: var(--text); background: var(--purple-light); }
+
+  .result-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .result-btn { padding: 12px; border: 2px solid var(--border); border-radius: 10px; background: var(--card2); color: var(--muted); font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .result-btn.win.selected { border-color: var(--green); background: var(--green-light); color: var(--green); }
+  .result-btn.loss.selected { border-color: var(--red); background: var(--red-light); color: var(--red); }
+  .result-btn.skip.selected { border-color: var(--gold); background: var(--gold-light); color: var(--gold); }
+  .result-btn.no-signal.selected { border-color: var(--muted); background: rgba(107,107,128,0.1); color: var(--muted); }
+
+  .save-btn { width: 100%; padding: 14px; background: var(--purple); border: none; border-radius: 11px; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 4px; transition: opacity 0.2s; }
+  .save-btn:hover { opacity: 0.88; }
+
+  /* ── ENTRIES ── */
+  .entries-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .entries-title { font-size: 15px; font-weight: 600; }
+  .entries-count { font-size: 12px; color: var(--muted); background: var(--card2); padding: 4px 10px; border-radius: 20px; }
+
+  .search-bar { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 10px 14px; outline: none; margin-bottom: 14px; }
+  .search-bar:focus { border-color: var(--purple); }
+
+  .entry-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.2s; }
+  .entry-card:hover { border-color: rgba(83,74,183,0.4); }
+  .entry-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .entry-date { font-size: 13px; font-weight: 600; color: var(--text); }
+  .entry-day { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .entry-badge { display: flex; gap: 6px; align-items: center; }
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge.win { background: var(--green-light); color: var(--green); }
+  .badge.loss { background: var(--red-light); color: var(--red); }
+  .badge.skip { background: var(--gold-light); color: var(--gold); }
+  .badge.no-signal { background: rgba(107,107,128,0.15); color: var(--muted); }
+  .entry-mood { font-size: 18px; }
+  .entry-preview { font-size: 13px; color: var(--muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .entry-pnl { font-size: 13px; font-weight: 600; margin-top: 8px; }
+  .entry-pnl.pos { color: var(--green); }
+  .entry-pnl.neg { color: var(--red); }
+
+  /* ── DETAIL MODAL ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: flex-end; }
+  .modal-overlay.open { display: flex; }
+  .modal-sheet { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-height: 90vh; overflow-y: auto; padding: 20px 18px 40px; }
+  .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 18px; }
+  .modal-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .modal-date { font-size: 18px; font-weight: 600; }
+  .modal-close { background: var(--card2); border: none; color: var(--muted); width: 32px; height: 32px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .modal-section { margin-bottom: 16px; }
+  .modal-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; margin-bottom: 6px; }
+  .modal-text { font-size: 14px; line-height: 1.6; color: var(--text); }
+  .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .modal-stat { background: var(--card2); border-radius: 10px; padding: 12px; }
+  .modal-stat-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .modal-stat-val { font-size: 16px; font-weight: 600; }
+  .delete-btn { width: 100%; padding: 12px; background: var(--red-light); border: 1px solid rgba(201,64,64,0.3); border-radius: 10px; color: var(--red); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+
+  /* ── STATS ── */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 6px; }
+  .stat-val { font-size: 22px; font-weight: 600; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .stat-card.full { grid-column: 1 / -1; }
+
+  .streak-bar { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; }
+  .streak-dot { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+  .streak-dot.w { background: var(--green-light); color: var(--green); }
+  .streak-dot.l { background: var(--red-light); color: var(--red); }
+  .streak-dot.s { background: var(--gold-light); color: var(--gold); }
+
+  .month-breakdown { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }
+  .month-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .month-row:last-child { border-bottom: none; }
+  .month-name { font-size: 14px; font-weight: 500; }
+  .month-wl { font-size: 12px; color: var(--muted); }
+  .month-pnl { font-size: 14px; font-weight: 600; }
+
+  .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-text { font-size: 14px; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--green); color: #fff; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 200; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">📓</div>
+  <h1>Trading Journal</h1>
+  <p>Track your journey, grow your edge</p>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('new')">New Entry</button>
+  <button class="tab" onclick="switchTab('entries')">Entries</button>
+  <button class="tab" onclick="switchTab('stats')">Stats</button>
+</div>
+
+<!-- ═══════════ NEW ENTRY TAB ═══════════ -->
+<div id="tab-new" class="tab-content active">
+
+  <div class="form-card">
+    <div class="form-title">📅 Session Info</div>
+    <div class="row2">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="form-group">
+        <label>Session</label>
+        <select id="f-session">
+          <option>NY Session</option>
+          <option>Asia Session</option>
+          <option>Both</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <div class="form-title">📊 Signal & Trade</div>
+    <div class="form-group">
+      <label>Signal Direction</label>
+      <select id="f-direction">
+        <option value="">— No signal today —</option>
+        <option>LONG</option>
+        <option>SHORT</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Confidence Level</label>
+      <select id="f-confidence">
+        <option value="">—</option>
+        <option>High (70%)</option>
+        <option>Medium (55–57%)</option>
+        <option>Low / No Trade</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Result</label>
+      <div class="result-row">
+        <button class="result-btn win" onclick="selectResult(this,'WIN')">✅ WIN</button>
+        <button class="result-btn loss" onclick="selectResult(this,'LOSS')">❌ LOSS</button>
+        <button class="result-btn skip" onclick="selectResult(this,'SKIP')">⏭ SKIP</button>
+        <button class="result-btn no-signal" onclick="selectResult(this,'NO SIGNAL')">— NO SIGNAL</button>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="form-group">
+        <label>Contracts</label>
+        <select id="f-contracts">
+          <option>1</option>
+          <option>2</option>
+          <option>3</option>
+          <option>4</option>
+          <option>5</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>P&L ($)</label>
+        <input type="number" id="f-pnl" placeholder="e.g. 450 or -550">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <div class="form-title">🧠 Mental State</div>
+    <div class="form-group">
+      <label>Did you follow the plan?</label>
+      <select id="f-followed-plan">
+        <option>Yes — followed exactly</option>
+        <option>Mostly — minor deviation</option>
+        <option>No — deviated significantly</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <div class="form-title">✍️ Journal Entry</div>
+    <div class="form-group">
+      <label>What happened today?</label>
+      <textarea id="f-what-happened" placeholder="Describe the session, the market, how the signal played out..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>How did you feel during / after the trade?</label>
+      <textarea id="f-emotions" placeholder="Were you anxious? Calm? Did you second-guess yourself?"></textarea>
+    </div>
+    <div class="form-group">
+      <label>What went well?</label>
+      <textarea id="f-went-well" placeholder="Even on a bad day, find something positive..." style="min-height:60px"></textarea>
+    </div>
+    <div class="form-group">
+      <label>What to improve?</label>
+      <textarea id="f-improve" placeholder="One thing to do differently next time..." style="min-height:60px"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Extra notes / lessons learned</label>
+      <textarea id="f-notes" placeholder="Market observations, patterns noticed, anything else..." style="min-height:60px"></textarea>
+    </div>
+  </div>
+
+  <button class="save-btn" onclick="saveEntry()">💾 Save Entry</button>
+</div>
+
+<!-- ═══════════ ENTRIES TAB ═══════════ -->
+<div id="tab-entries" class="tab-content">
+  <input class="search-bar" type="text" placeholder="🔍 Search entries..." oninput="renderEntries(this.value)">
+  <div class="entries-header">
+    <span class="entries-title">All Entries</span>
+    <span class="entries-count" id="entries-count">0 entries</span>
+  </div>
+  <div id="entries-list"></div>
+</div>
+
+<!-- ═══════════ STATS TAB ═══════════ -->
+<div id="tab-stats" class="tab-content">
+  <div id="stats-content"></div>
+</div>
+
+<!-- ═══════════ DETAIL MODAL ═══════════ -->
+<div class="modal-overlay" id="detail-modal" onclick="closeModal(event)">
+  <div class="modal-sheet" id="modal-content"></div>
+</div>
+
+<div class="toast" id="toast">✅ Entry saved!</div>
+
+<script>
+const STORAGE_KEY = 'polo_trading_journal_v1';
+let entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let selectedMood = '';
+let selectedResult = '';
+let disciplineRating = '';
+
+// Set today's date
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['new','entries','stats'][i] === name));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'entries') renderEntries();
+  if (name === 'stats') renderStats();
+}
+
+function selectMood(btn, emoji) {
+  document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedMood = emoji;
+}
+
+function selectResult(btn, result) {
+  document.querySelectorAll('.result-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedResult = result;
+}
+
+function selectRating(btn, type) {
+  document.querySelectorAll('#discipline-rating .rating-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  disciplineRating = btn.textContent;
+}
+
+function saveEntry() {
+  const date = document.getElementById('f-date').value;
+  if (!date) { alert('Please select a date.'); return; }
+
+  const entry = {
+    id: Date.now(),
+    date,
+    session: document.getElementById('f-session').value,
+    direction: document.getElementById('f-direction').value,
+    confidence: document.getElementById('f-confidence').value,
+    result: selectedResult,
+    contracts: document.getElementById('f-contracts').value,
+    pnl: document.getElementById('f-pnl').value ? parseFloat(document.getElementById('f-pnl').value) : null,
+    mood: selectedMood,
+    discipline: disciplineRating,
+    followedPlan: document.getElementById('f-followed-plan').value,
+    whatHappened: document.getElementById('f-what-happened').value,
+    emotions: document.getElementById('f-emotions').value,
+    wentWell: document.getElementById('f-went-well').value,
+    improve: document.getElementById('f-improve').value,
+    notes: document.getElementById('f-notes').value,
+  };
+
+  entries.unshift(entry);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+
+  // Reset form
+  selectedMood = ''; selectedResult = ''; disciplineRating = '';
+  document.querySelectorAll('.emoji-btn, .result-btn, .rating-btn').forEach(b => b.classList.remove('selected'));
+  ['f-direction','f-confidence','f-followed-plan'].forEach(id => document.getElementById(id).selectedIndex = 0);
+  ['f-what-happened','f-emotions','f-went-well','f-improve','f-notes','f-pnl'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+  showToast('Entry saved!');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = '✅ ' + msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+}
+
+function shortDate(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+
+function renderEntries(search = '') {
+  const list = document.getElementById('entries-list');
+  const countEl = document.getElementById('entries-count');
+  const q = search.toLowerCase();
+  const filtered = entries.filter(e =>
+    !q || e.date.includes(q) || (e.whatHappened||'').toLowerCase().includes(q) ||
+    (e.result||'').toLowerCase().includes(q) || (e.direction||'').toLowerCase().includes(q) ||
+    (e.notes||'').toLowerCase().includes(q)
+  );
+  countEl.textContent = filtered.length + ' entr' + (filtered.length === 1 ? 'y' : 'ies');
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">${search ? 'No entries match your search.' : 'No entries yet. Start logging your trades!'}</div></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(e => {
+    const rc = (e.result||'').toLowerCase().replace(' ','-');
+    const pnlHtml = e.pnl != null ? `<div class="entry-pnl ${e.pnl >= 0 ? 'pos' : 'neg'}">${e.pnl >= 0 ? '+' : ''}$${Math.abs(e.pnl).toLocaleString()}</div>` : '';
+    const preview = e.whatHappened || e.emotions || e.notes || 'No notes written.';
+    return `<div class="entry-card" onclick="openEntry(${e.id})">
+      <div class="entry-top">
+        <div>
+          <div class="entry-date">${shortDate(e.date)}</div>
+          <div class="entry-day">${e.session || ''}</div>
+        </div>
+        <div class="entry-badge">
+          ${e.result ? `<span class="badge ${rc}">${e.result}</span>` : ''}
+          <span class="entry-mood">${e.mood || ''}</span>
+        </div>
+      </div>
+      <div class="entry-preview">${preview}</div>
+      ${pnlHtml}
+    </div>`;
+  }).join('');
+}
+
+function openEntry(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  const rc = (e.result||'').toLowerCase().replace(' ','-');
+  const content = document.getElementById('modal-content');
+  content.innerHTML = `
+    <div class="modal-handle"></div>
+    <div class="modal-top">
+      <div>
+        <div class="modal-date">${formatDate(e.date)}</div>
+        <div style="color:var(--muted);font-size:12px;margin-top:3px">${e.session||''}</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-grid">
+      <div class="modal-stat">
+        <div class="modal-stat-label">Result</div>
+        <div class="modal-stat-val" style="color:${e.result==='WIN'?'var(--green)':e.result==='LOSS'?'var(--red)':'var(--gold)'}">${e.result||'—'} ${e.mood||''}</div>
+      </div>
+      <div class="modal-stat">
+        <div class="modal-stat-label">P&L</div>
+        <div class="modal-stat-val" style="color:${e.pnl>=0?'var(--green)':'var(--red)'}">${e.pnl!=null?(e.pnl>=0?'+':'')+'$'+Math.abs(e.pnl).toLocaleString():'—'}</div>
+      </div>
+      <div class="modal-stat">
+        <div class="modal-stat-label">Signal</div>
+        <div class="modal-stat-val" style="font-size:14px">${e.direction||'—'} · ${e.confidence||'—'}</div>
+      </div>
+      <div class="modal-stat">
+        <div class="modal-stat-label">Discipline</div>
+        <div class="modal-stat-val">${e.discipline ? e.discipline+'/10' : '—'}</div>
+      </div>
+    </div>
+    <div class="modal-stat" style="margin-bottom:14px;border-radius:10px;padding:12px;background:var(--card2)">
+      <div class="modal-stat-label">Followed Plan</div>
+      <div style="font-size:13px;margin-top:4px;color:var(--text)">${e.followedPlan||'—'}</div>
+    </div>
+    ${section('What Happened', e.whatHappened)}
+    ${section('Emotions', e.emotions)}
+    ${section('What Went Well', e.wentWell)}
+    ${section('Improve Next Time', e.improve)}
+    ${section('Notes / Lessons', e.notes)}
+    <button class="delete-btn" onclick="deleteEntry(${e.id})">🗑 Delete Entry</button>
+  `;
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function section(label, text) {
+  if (!text) return '';
+  return `<div class="modal-section"><div class="modal-label">${label}</div><div class="modal-text">${text.replace(/\n/g,'<br>')}</div></div>`;
+}
+
+function deleteEntry(id) {
+  if (!confirm('Delete this entry?')) return;
+  entries = entries.filter(e => e.id !== id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  closeModal();
+  renderEntries();
+  showToast('Entry deleted');
+}
+
+function closeModal(event) {
+  if (!event || event.target === document.getElementById('detail-modal')) {
+    document.getElementById('detail-modal').classList.remove('open');
+  }
+}
+
+function renderStats() {
+  const el = document.getElementById('stats-content');
+  if (!entries.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">No entries yet. Start logging to see your stats.</div></div>`;
+    return;
+  }
+  const trades = entries.filter(e => e.result === 'WIN' || e.result === 'LOSS');
+  const wins = trades.filter(e => e.result === 'WIN').length;
+  const losses = trades.filter(e => e.result === 'LOSS').length;
+  const wr = trades.length ? Math.round(wins/trades.length*100) : 0;
+  const totalPnl = entries.reduce((s,e) => s + (e.pnl||0), 0);
+  const grossW = entries.filter(e=>e.result==='WIN').reduce((s,e)=>s+(e.pnl||0),0);
+  const grossL = Math.abs(entries.filter(e=>e.result==='LOSS').reduce((s,e)=>s+(e.pnl||0),0));
+  const pf = grossL > 0 ? (grossW/grossL).toFixed(2) : wins > 0 ? '∞' : '—';
+
+  // Best/worst streak
+  let best=0, worst=0, cur=0, curType='';
+  trades.forEach(e => {
+    if (e.result === curType) { cur++; }
+    else { cur=1; curType=e.result; }
+    if (curType==='WIN' && cur>best) best=cur;
+    if (curType==='LOSS' && cur>worst) worst=cur;
+  });
+
+  // Month breakdown
+  const monthMap = {};
+  entries.forEach(e => {
+    const m = e.date.slice(0,7);
+    if (!monthMap[m]) monthMap[m] = {w:0,l:0,pnl:0};
+    if (e.result==='WIN') monthMap[m].w++;
+    if (e.result==='LOSS') monthMap[m].l++;
+    monthMap[m].pnl += (e.pnl||0);
+  });
+
+  // Recent streak dots (last 20 trades)
+  const recentDots = trades.slice(0,20).map(e =>
+    `<div class="streak-dot ${e.result==='WIN'?'w':'l'}">${e.result==='WIN'?'W':'L'}</div>`
+  ).join('');
+
+  // Avg discipline
+  const withDisc = entries.filter(e => e.discipline);
+  const avgDisc = withDisc.length ? (withDisc.reduce((s,e)=>s+parseInt(e.discipline),0)/withDisc.length).toFixed(1) : '—';
+
+  el.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Win Rate</div>
+        <div class="stat-val" style="color:${wr>=70?'var(--green)':wr>=55?'var(--gold)':'var(--red)'}">${wr}%</div>
+        <div class="stat-sub">${wins}W / ${losses}L</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Net P&L</div>
+        <div class="stat-val" style="color:${totalPnl>=0?'var(--green)':'var(--red)'}">${totalPnl>=0?'+':''}$${Math.abs(totalPnl).toLocaleString()}</div>
+        <div class="stat-sub">${trades.length} trades</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Profit Factor</div>
+        <div class="stat-val">${pf}</div>
+        <div class="stat-sub">Gross P / L ratio</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Discipline</div>
+        <div class="stat-val">${avgDisc}${avgDisc!=='—'?'/10':''}</div>
+        <div class="stat-sub">Self-rating</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Best Streak</div>
+        <div class="stat-val" style="color:var(--green)">${best}W</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Worst Streak</div>
+        <div class="stat-val" style="color:var(--red)">${worst}L</div>
+      </div>
+      <div class="stat-card full">
+        <div class="stat-label">Recent Trades</div>
+        <div class="streak-bar" style="margin-top:10px">${recentDots}</div>
+      </div>
+    </div>
+    <div class="stat-label" style="margin-bottom:8px;padding:0 2px">Monthly Breakdown</div>
+    <div class="month-breakdown">
+      ${Object.entries(monthMap).sort((a,b)=>b[0].localeCompare(a[0])).map(([m,d])=>{
+        const label = new Date(m+'-15').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+        const wr2 = d.w+d.l > 0 ? Math.round(d.w/(d.w+d.l)*100) : 0;
+        return `<div class="month-row">
+          <div>
+            <div class="month-name">${label}</div>
+            <div class="month-wl">${d.w}W / ${d.l}L · ${wr2}%</div>
+          </div>
+          <div class="month-pnl" style="color:${d.pnl>=0?'var(--green)':'var(--red)'}">${d.pnl>=0?'+':''}$${Math.abs(d.pnl).toLocaleString()}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+</script>
+</body>
+</html>

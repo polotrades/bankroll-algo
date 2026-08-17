@@ -1,7 +1,53 @@
 // ── Bankroll Algo v2 · app.js ─────────────────────────────────────────────
 
 // ── Session ───────────────────────────────────────────────────────────────
-let currentSession = localStorage.getItem('ba_session') || 'ny'; // ny | london | asia
+let currentSession = 'ny'; // NY only — London + Asia removed
+
+// ── Next Signal Countdown Timer ───────────────────────────────────────────
+(function startCountdown() {
+  function getNextSignal() {
+    // Signal fires at 6:15 AM PT (America/Los_Angeles) Mon–Fri
+    const now = new Date();
+    // Get current PT time
+    const ptNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+    const target = new Date(ptNow);
+    target.setHours(6, 15, 0, 0);
+
+    // If we're past 6:15 today, jump to next day
+    if (ptNow >= target) {
+      target.setDate(target.getDate() + 1);
+    }
+    // Skip to Monday if it's weekend
+    while (target.getDay() === 0 || target.getDay() === 6) {
+      target.setDate(target.getDate() + 1);
+    }
+
+    // Convert back to UTC ms delta
+    const ptTargetStr = target.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
+    const ptTargetDate = new Date(ptTargetStr);
+    const offsetMs = target - ptTargetDate;
+    return new Date(target.getTime() + offsetMs);
+  }
+
+  function tick() {
+    const el = document.getElementById('next-signal-timer');
+    if (!el) return;
+    const now = new Date();
+    const next = getNextSignal();
+    let diff = Math.max(0, next - now);
+    const h  = Math.floor(diff / 3600000);
+    diff -= h * 3600000;
+    const m  = Math.floor(diff / 60000);
+    diff -= m * 60000;
+    const s  = Math.floor(diff / 1000);
+    const pad = n => String(n).padStart(2, '0');
+    el.textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
+    if (diff === 0) el.textContent = 'Signal Live!';
+  }
+
+  tick();
+  setInterval(tick, 1000);
+})();
 
 function buildBacktestCard(sess = 'ny') {
   const TP_USD = 450;
@@ -109,41 +155,17 @@ function buildBacktestCard(sess = 'ny') {
 }
 
 function applyBacktestUI(sess) {
-  const btNY     = document.getElementById('bt-ny');
-  const btLondon = document.getElementById('bt-london');
-  const btAsia   = document.getElementById('bt-asia');
-  if (btNY)     btNY.style.display     = sess === 'ny'     ? 'block' : 'none';
-  if (btLondon) btLondon.style.display = sess === 'london' ? 'block' : 'none';
-  if (btAsia)   btAsia.style.display   = sess === 'asia'   ? 'block' : 'none';
-}
-
-function applySessionUI(sess) {
-  const nyBtn     = document.getElementById('sess-ny');
-  const londonBtn = document.getElementById('sess-london');
-  const asiaBtn   = document.getElementById('sess-asia');
-  const base = 'flex:1;padding:9px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em';
-  const active   = base + ';background:var(--purple,#6B5FD0);color:#fff';
-  const inactive = base + ';background:transparent;color:var(--text-muted,#52526A)';
-  if (nyBtn)     nyBtn.style.cssText     = sess === 'ny'     ? active : inactive;
-  if (londonBtn) londonBtn.style.cssText = sess === 'london' ? active : inactive;
-  if (asiaBtn)   asiaBtn.style.cssText   = sess === 'asia'   ? active : inactive;
-}
-
-function switchSession(sess) {
-  currentSession = sess;
-  localStorage.setItem('ba_session', sess);
-  applySessionUI(sess);
-  applyBacktestUI(sess);
-  document.getElementById('signal-loading').style.display = 'block';
-  document.getElementById('signal-body').style.display   = 'none';
-  document.getElementById('signal-empty').style.display  = 'none';
-  buildCalendar();
-  updateStats();
-  loadSignal();
+  // NY only — show NY backtest, hide others
+  const btNY = document.getElementById('bt-ny');
+  if (btNY) btNY.style.display = 'block';
+  ['bt-london','bt-asia'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
 }
 
 // ── Access control ────────────────────────────────────────────────────────
-let userRole = localStorage.getItem('ba_role') || 'preview'; // preview | member | admin
+let userRole = 'admin'; // always unlocked
 
 function openUnlock() {
   document.getElementById('modal-overlay').classList.add('open');
@@ -185,40 +207,291 @@ async function checkPassword() {
 }
 
 function applyRole() {
-  const body = document.body;
-  const banner = document.getElementById('preview-banner');
-  const badge = document.getElementById('access-badge');
-
-  if (userRole === 'admin') {
-    body.classList.add('unlocked');
-    banner.classList.add('hidden');
-    badge.className = 'access-badge admin';
-    badge.innerHTML = '<i class="ti ti-shield-check"></i> Admin Access';
-    document.getElementById('admin-panel').style.display = 'block';
-    const emptyAdmin = document.getElementById('admin-panel-empty');
-    if (emptyAdmin) emptyAdmin.style.display = 'block';
-  } else if (userRole === 'member') {
-    body.classList.add('unlocked');
-    banner.classList.add('hidden');
-    badge.className = 'access-badge member';
-    badge.innerHTML = '<i class="ti ti-lock-open"></i> Member Access';
-  } else {
-    body.classList.remove('unlocked');
-    banner.classList.remove('hidden');
-    badge.className = 'access-badge';
-    badge.innerHTML = '<i class="ti ti-eye-off"></i> Preview Mode';
-    document.getElementById('admin-panel').style.display = 'none';
-  }
+  // Always unlocked — password removed
+  document.body.classList.add('unlocked');
+  const adminPanel = document.getElementById('admin-panel');
+  if (adminPanel) adminPanel.style.display = 'block';
+  const emptyAdmin = document.getElementById('admin-panel-empty');
+  if (emptyAdmin) emptyAdmin.style.display = 'block';
 }
 
 // ── Tab switching ─────────────────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['signal','performance','market'][i] === name);
+    t.classList.toggle('active', ['signal','calendar','journal','performance','market'][i] === name);
   });
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  if (name === 'market') initCharts();
+  if (name === 'market')      initCharts();
+  if (name === 'calendar')   { buildCalendar(); updateCalStats(); }
+  if (name === 'journal')    { initJournalForm(); renderJournal(); renderWeeklyReview(); }
+  if (name === 'performance') { updateCalStats(); renderPerfWeeklyPnL(); }
+}
+
+// ── Journal ───────────────────────────────────────────────────────────────
+const JOURNAL_KEY = 'bankroll_journal_v1';
+
+function loadJournal() {
+  try { return JSON.parse(localStorage.getItem(JOURNAL_KEY) || '[]'); } catch { return []; }
+}
+function saveJournal(entries) {
+  localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
+}
+
+let _jAction = 'long';
+let _jResult = 'win';
+
+function selectJAction(btn) {
+  document.querySelectorAll('.j-action-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _jAction = btn.dataset.val;
+  const resultRow = document.getElementById('j-result-row');
+  if (resultRow) resultRow.style.display = _jAction === 'skipped' ? 'none' : 'block';
+}
+
+function selectJResult(btn) {
+  document.querySelectorAll('.j-result-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _jResult = btn.dataset.val;
+}
+
+function initJournalForm() {
+  const dateEl = document.getElementById('j-date');
+  if (dateEl && !dateEl.value) {
+    dateEl.value = new Date().toISOString().split('T')[0];
+  }
+}
+
+function saveJournalEntry() {
+  const date    = document.getElementById('j-date').value;
+  const notes   = (document.getElementById('j-notes').value || '').trim();
+  if (!date) { alert('Please select a date.'); return; }
+
+  const entry = {
+    id:      Date.now(),
+    date,
+    action:  _jAction,
+    result:  _jAction === 'skipped' ? null : _jResult,
+    notes,
+  };
+
+  const entries = loadJournal();
+  entries.unshift(entry);
+  saveJournal(entries);
+
+  // Reset notes
+  document.getElementById('j-notes').value = '';
+  renderJournal();
+}
+
+function deleteJournalEntry(id) {
+  const entries = loadJournal().filter(e => e.id !== id);
+  saveJournal(entries);
+  renderJournal();
+}
+
+function renderJournal() {
+  const el = document.getElementById('journal-entries');
+  if (!el) return;
+  const entries = loadJournal();
+  if (entries.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px;background:var(--surface-1);border-radius:12px;border:0.5px solid var(--border)">No entries yet — log your first trade above.</div>`;
+    return;
+  }
+
+  const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  el.innerHTML = entries.map(e => {
+    const d   = new Date(e.date + 'T12:00:00');
+    const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+    const dateStr = `${dow}, ${MN[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+
+    const actionColor = e.action === 'long' ? 'var(--green)' : e.action === 'short' ? 'var(--red)' : 'var(--text-muted)';
+    const actionLabel = e.action === 'long' ? '📈 LONG' : e.action === 'short' ? '📉 SHORT' : '⏭ SKIPPED';
+
+    let resultBadge = '';
+    if (e.result) {
+      const isWin = e.result === 'win';
+      resultBadge = `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${isWin ? 'var(--green-light)' : 'var(--red-light)'};color:${isWin ? 'var(--green)' : 'var(--red)'};">${isWin ? '✅ WIN' : '❌ LOSS'}</span>`;
+      const pnl = isWin ? '+$450' : '-$550';
+      const pnlColor = isWin ? 'var(--green)' : 'var(--red)';
+      resultBadge += `<span style="font-size:13px;font-weight:700;color:${pnlColor};margin-left:8px">${pnl}</span>`;
+    }
+
+    return `<div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">${dateStr}</div>
+          <div style="font-size:16px;font-weight:700;color:${actionColor}">${actionLabel}</div>
+        </div>
+        <button onclick="deleteJournalEntry(${e.id})" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:0;line-height:1" title="Delete">×</button>
+      </div>
+      ${resultBadge ? `<div style="margin-bottom:${e.notes ? '8px' : '0'}">${resultBadge}</div>` : ''}
+      ${e.notes ? `<div style="font-size:13px;color:var(--text-muted);line-height:1.6;padding:9px 11px;background:var(--bg);border-radius:7px;border:0.5px solid var(--border)">${e.notes}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── Weekly Review ─────────────────────────────────────────────────────────
+const WEEK_NOTES_KEY = 'ba_week_notes_v1';
+let weekOffset = 0; // 0 = current week, -1 = last week, etc.
+
+function getWeekRange(offset) {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun,1=Mon...
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + offset * 7);
+  monday.setHours(0,0,0,0);
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  friday.setHours(23,59,59,999);
+  return { monday, friday };
+}
+
+function weekKey(offset) {
+  const { monday } = getWeekRange(offset);
+  return monday.toISOString().slice(0, 10);
+}
+
+function saveWeekNotes() {
+  const notes = (document.getElementById('week-notes')?.value || '').trim();
+  const stored = JSON.parse(localStorage.getItem(WEEK_NOTES_KEY) || '{}');
+  stored[weekKey(weekOffset)] = notes;
+  localStorage.setItem(WEEK_NOTES_KEY, JSON.stringify(stored));
+  const btn = document.querySelector('#weekly-review-card button');
+  if (btn) { btn.textContent = 'Saved ✓'; btn.style.background = '#1D9E75'; setTimeout(() => { btn.textContent = 'Save Notes'; btn.style.background = '#534AB7'; }, 2000); }
+}
+
+function weekNav(dir) {
+  weekOffset += dir;
+  renderWeeklyReview();
+}
+
+function renderWeeklyReview() {
+  const { monday, friday } = getWeekRange(weekOffset);
+  const entries = loadJournal();
+  const weekLabel = document.getElementById('week-label');
+  const dayStrip  = document.getElementById('week-day-strip');
+  const weekStats = document.getElementById('week-stats');
+  const weekNotes = document.getElementById('week-notes');
+  if (!weekLabel || !dayStrip || !weekStats) return;
+
+  // Label
+  const fmt = d => d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  weekLabel.textContent = `${fmt(monday)} – ${fmt(friday)}`;
+
+  // Get entries for this week
+  const weekEntries = entries.filter(e => {
+    const d = new Date(e.date + 'T12:00:00');
+    return d >= monday && d <= friday;
+  });
+
+  // Day strip Mon-Fri
+  const days = ['Mon','Tue','Wed','Thu','Fri'];
+  dayStrip.innerHTML = days.map((d, i) => {
+    const dayDate = new Date(monday);
+    dayDate.setDate(monday.getDate() + i);
+    const dateStr = dayDate.toISOString().slice(0,10);
+    const entry = weekEntries.find(e => e.date === dateStr);
+    let bg = 'var(--surface-2)', border = 'var(--border)', icon = '—', iconColor = 'var(--text-muted)';
+    if (entry) {
+      if (entry.action === 'skipped') { bg='rgba(83,74,183,0.1)'; border='#534AB7'; icon='⏭'; iconColor='#534AB7'; }
+      else if (entry.result === 'win') { bg='rgba(15,110,86,0.12)'; border='var(--green)'; icon='W'; iconColor='var(--green)'; }
+      else if (entry.result === 'loss') { bg='rgba(163,45,45,0.12)'; border='var(--red)'; icon='L'; iconColor='var(--red)'; }
+    }
+    return `<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:8px 4px;text-align:center">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">${d}</div>
+      <div style="font-size:16px;font-weight:700;color:${iconColor}">${icon}</div>
+      <div style="font-size:9px;color:var(--text-muted);margin-top:2px">${entry ? (entry.action==='skipped'?'Skip':entry.action.toUpperCase()) : ''}</div>
+    </div>`;
+  }).join('');
+
+  // Stats
+  const trades = weekEntries.filter(e => e.action !== 'skipped');
+  const wins   = trades.filter(e => e.result === 'win').length;
+  const losses = trades.filter(e => e.result === 'loss').length;
+  const skips  = weekEntries.filter(e => e.action === 'skipped').length;
+  const pnl    = (wins * 450) - (losses * 550);
+  const wr     = trades.length > 0 ? Math.round(wins / trades.length * 100) : 0;
+
+  const stat = (label, val, color) => `<div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">${label}</div>
+    <div style="font-size:18px;font-weight:700;color:${color || 'var(--text-primary)'}">${val}</div>
+  </div>`;
+
+  weekStats.innerHTML =
+    stat('Win Rate', trades.length ? wr + '%' : '—', wr >= 60 ? 'var(--green)' : wr > 0 ? 'var(--red)' : 'var(--text-muted)') +
+    stat('P&L', trades.length ? (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl) : '—', pnl > 0 ? 'var(--green)' : pnl < 0 ? 'var(--red)' : 'var(--text-muted)') +
+    stat('Trades', trades.length, 'var(--text-primary)') +
+    stat('Skipped', skips, '#534AB7');
+
+  // Notes
+  const stored = JSON.parse(localStorage.getItem(WEEK_NOTES_KEY) || '{}');
+  if (weekNotes) weekNotes.value = stored[weekKey(weekOffset)] || '';
+}
+
+// ── Performance Tab Weekly P&L ────────────────────────────────────────────
+let perfWeekOffset = 0;
+
+function perfWeekNav(dir) {
+  perfWeekOffset += dir;
+  renderPerfWeeklyPnL();
+}
+
+function renderPerfWeeklyPnL() {
+  const { monday, friday } = getWeekRange(perfWeekOffset);
+  const entries = loadJournal();
+  const labelEl     = document.getElementById('perf-week-label');
+  const dayStripEl  = document.getElementById('perf-week-day-strip');
+  const statsEl     = document.getElementById('perf-week-stats');
+  if (!labelEl || !dayStripEl || !statsEl) return;
+
+  const fmt = d => d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  labelEl.textContent = `${fmt(monday)} – ${fmt(friday)}`;
+
+  const weekEntries = entries.filter(e => {
+    const d = new Date(e.date + 'T12:00:00');
+    return d >= monday && d <= friday;
+  });
+
+  const days = ['Mon','Tue','Wed','Thu','Fri'];
+  dayStripEl.innerHTML = days.map((d, i) => {
+    const dayDate = new Date(monday);
+    dayDate.setDate(monday.getDate() + i);
+    const dateStr = dayDate.toISOString().slice(0,10);
+    const entry = weekEntries.find(e => e.date === dateStr);
+    let bg = 'var(--surface-2)', border = 'var(--border)', icon = '—', iconColor = 'var(--text-muted)', pnl = '';
+    if (entry) {
+      if (entry.action === 'skipped') { bg='rgba(83,74,183,0.1)'; border='#534AB7'; icon='⏭'; iconColor='#534AB7'; pnl='Skip'; }
+      else if (entry.result === 'win')  { bg='rgba(15,110,86,0.12)'; border='var(--green)'; icon='+$450'; iconColor='var(--green)'; pnl='Win'; }
+      else if (entry.result === 'loss') { bg='rgba(163,45,45,0.12)'; border='var(--red)'; icon='-$550'; iconColor='var(--red)'; pnl='Loss'; }
+    }
+    return `<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:8px 4px;text-align:center">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">${d}</div>
+      <div style="font-size:12px;font-weight:700;color:${iconColor};line-height:1.2">${icon}</div>
+      <div style="font-size:9px;color:var(--text-muted);margin-top:2px">${pnl}</div>
+    </div>`;
+  }).join('');
+
+  const trades = weekEntries.filter(e => e.action !== 'skipped');
+  const wins   = trades.filter(e => e.result === 'win').length;
+  const losses = trades.filter(e => e.result === 'loss').length;
+  const netPnl = (wins * 450) - (losses * 550);
+  const wr     = trades.length > 0 ? Math.round(wins / trades.length * 100) : 0;
+
+  const stat = (label, val, sub, valColor) => `<div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">${label}</div>
+    <div style="font-size:18px;font-weight:700;color:${valColor || 'var(--text-primary)'}">${val}</div>
+    ${sub ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${sub}</div>` : ''}
+  </div>`;
+
+  const pnlColor = netPnl > 0 ? 'var(--green)' : netPnl < 0 ? 'var(--red)' : 'var(--text-muted)';
+  const pnlStr   = trades.length ? ((netPnl >= 0 ? '+$' : '-$') + Math.abs(netPnl)) : '—';
+  const wrColor  = wr >= 60 ? 'var(--green)' : wr > 0 ? 'var(--red)' : 'var(--text-muted)';
+
+  statsEl.innerHTML =
+    stat('Net P&L', pnlStr, trades.length ? `${wins}W / ${losses}L` : 'No trades', pnlColor) +
+    stat('Win Rate', trades.length ? wr + '%' : '—', trades.length ? `${trades.length} trade${trades.length!==1?'s':''}` : '', wrColor) +
+    stat('Gross', trades.length ? `${wins}×$450` : '—', losses ? `-${losses}×$550` : 'No losses', 'var(--text-primary)');
 }
 
 // ── Date display ──────────────────────────────────────────────────────────
@@ -227,76 +500,113 @@ document.getElementById('today-date').textContent = new Date().toLocaleDateStrin
 });
 
 // ── Load today's signal from API ──────────────────────────────────────────
+function showEmpty() {
+  const loading   = document.getElementById('signal-loading');
+  const body      = document.getElementById('signal-body');
+  const empty     = document.getElementById('signal-empty');
+  const checklist = document.getElementById('trade-checklist');
+  const szCard    = document.getElementById('sz-card');
+  if (loading)   loading.style.display   = 'none';
+  if (body)      body.style.display      = 'none';
+  if (empty)     empty.style.display     = 'block';
+  if (checklist) checklist.style.display = 'none';
+  if (szCard)    szCard.style.display    = 'none';
+}
+
 async function loadSignal() {
-  const endpoint = currentSession === 'asia' ? '/api/get-asia-signal'
-                 : currentSession === 'london' ? '/api/get-london-signal'
-                 : '/api/get-signal';
+  // Start in empty/pending state — no spinner blocking the page
+  showEmpty();
+  buildCalendar();
+  applyBacktestUI('ny');
+  buildBacktestCard('ny');
+
+  // Weekends: cron doesn't fire, no signal available
+  const day = new Date().getDay();
+  if (day === 0 || day === 6) return;
+
+  // Try to load signal with 7s timeout
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 7000);
+
   try {
-    const res = await fetch(endpoint + '?t=' + Date.now(), { cache: 'no-store' });
+    const res  = await fetch('/api/get-signal?t=' + Date.now(), { cache: 'no-store', signal: controller.signal });
+    clearTimeout(timer);
     const data = await res.json();
 
-    document.getElementById('signal-loading').style.display = 'none';
-
+    // If Redis returned nothing, try today's localStorage cache
     if (!data.signal) {
-      document.getElementById('signal-empty').style.display = 'block';
-      return;
+      const todayKey = 'ba_signal_' + new Date().toISOString().slice(0, 10);
+      try {
+        const cached = localStorage.getItem(todayKey);
+        if (cached) data.signal = JSON.parse(cached);
+      } catch {}
     }
 
-    document.getElementById('signal-body').style.display = 'block';
+    if (!data.signal) return; // nothing anywhere — stay pending
+
+    // Always keep a local copy for same-day reloads
+    const todayKey = 'ba_signal_' + new Date().toISOString().slice(0, 10);
+    try { localStorage.setItem(todayKey, JSON.stringify(data.signal)); } catch {}
+
+    const body = document.getElementById('signal-body');
+    const empty = document.getElementById('signal-empty');
+    if (body)  body.style.display  = 'block';
+    if (empty) empty.style.display = 'none';
     populateSignal(data.signal);
 
   } catch (err) {
-    // Real failure (network/parse error) — show empty state, never fake data
-    console.error('loadSignal failed:', err);
-    document.getElementById('signal-loading').style.display = 'none';
-    document.getElementById('signal-empty').style.display = 'block';
+    clearTimeout(timer);
+    console.error('loadSignal:', err.message);
+    // Already showing empty state — nothing more to do
   }
 }
 
 function populateSignal(signal) {
+  try {
   const isLong = signal.direction === 'LONG';
 
   // Direction
-  document.getElementById('dir-text').textContent = signal.direction;
-  document.getElementById('dir-text').style.color = isLong ? '#0F6E56' : '#A32D2D';
-  document.getElementById('dir-sub').textContent = isLong ? 'Buy Signal' : 'Sell Signal';
+  const dirText = document.getElementById('dir-text');
+  if (dirText) { dirText.textContent = signal.direction; dirText.style.color = isLong ? '#0F6E56' : '#A32D2D'; }
+  const dirSub = document.getElementById('dir-sub');
+  if (dirSub) dirSub.textContent = isLong ? 'Buy Signal' : 'Sell Signal';
   const icon = document.getElementById('dir-icon');
-  icon.style.background = isLong ? '#E1F5EE' : '#FCEBEB';
-  icon.innerHTML = `<i class="ti ti-trending-${isLong ? 'up' : 'down'}" style="color:${isLong ? '#0F6E56' : '#A32D2D'};font-size:18px"></i>`;
+  if (icon) {
+    icon.style.background = isLong ? '#E1F5EE' : '#FCEBEB';
+    icon.innerHTML = `<i class="ti ti-trending-${isLong ? 'up' : 'down'}" style="color:${isLong ? '#0F6E56' : '#A32D2D'};font-size:18px"></i>`;
+  }
 
   // Bias & Confidence
   const biasEl = document.getElementById('bias-txt');
-  biasEl.textContent = signal.bias;
-  biasEl.style.color = isLong ? '#0F6E56' : '#A32D2D';
+  if (biasEl) { biasEl.textContent = signal.bias; biasEl.style.color = isLong ? '#0F6E56' : '#A32D2D'; }
 
   const confEl = document.getElementById('conf-lvl');
   const hitRate = signal.hit_rate ?? (signal.confidence === 'High' ? 70 : signal.confidence === 'Medium' ? 56 : 29);
-  confEl.textContent = `${signal.confidence} · ${hitRate}% hit rate`;
-  confEl.style.color = signal.confidence === 'High' ? '#534AB7' : signal.confidence === 'Medium' ? '#854F0B' : '#A32D2D';
+  if (confEl) {
+    confEl.textContent = `${signal.confidence} · ${hitRate}% hit rate`;
+    confEl.style.color = signal.confidence === 'High' ? '#534AB7' : signal.confidence === 'Medium' ? '#854F0B' : '#A32D2D';
+  }
 
   // No-trade banner — moderate-conviction filter OR low confidence, signal still shows for reference
   const existingBanner = document.getElementById('no-trade-banner');
   if (existingBanner) existingBanner.remove();
-  if (signal.no_trade) {
+  if (confEl && (signal.no_trade || signal.confidence === 'Low')) {
     const banner = document.createElement('div');
     banner.id = 'no-trade-banner';
     banner.style.cssText = 'margin:12px 0 4px;padding:10px 14px;background:#FCEBEB;border:0.5px solid #F09595;border-radius:8px;display:flex;align-items:center;gap:8px';
-    banner.innerHTML = `<span style="font-size:15px">🚫</span><div><div style="font-size:13px;font-weight:500;color:#A32D2D">No trade today</div><div style="font-size:11px;color:#791F1F;margin-top:1px">${signal.no_trade_reason || 'Moderate-conviction setup — below backtested breakeven.'}</div></div>`;
-    confEl.parentElement.insertAdjacentElement('afterend', banner);
-  } else if (signal.confidence === 'Low') {
-    const banner = document.createElement('div');
-    banner.id = 'no-trade-banner';
-    banner.style.cssText = 'margin:12px 0 4px;padding:10px 14px;background:#FCEBEB;border:0.5px solid #F09595;border-radius:8px;display:flex;align-items:center;gap:8px';
-    banner.innerHTML = `<span style="font-size:15px">🚫</span><div><div style="font-size:13px;font-weight:500;color:#A32D2D">No trade today</div><div style="font-size:11px;color:#791F1F;margin-top:1px">Low confidence — signal shown for reference only</div></div>`;
-    confEl.parentElement.insertAdjacentElement('afterend', banner);
+    const reason = signal.no_trade
+      ? (signal.no_trade_reason || 'Moderate-conviction setup — below backtested breakeven.')
+      : 'Low confidence — signal shown for reference only';
+    banner.innerHTML = `<span style="font-size:15px">🚫</span><div><div style="font-size:13px;font-weight:500;color:#A32D2D">No trade today</div><div style="font-size:11px;color:#791F1F;margin-top:1px">${reason}</div></div>`;
+    if (confEl.parentElement) confEl.parentElement.insertAdjacentElement('afterend', banner);
   }
 
-  // TP / SL / RR (unlocked values — shown only when unlocked)
-  document.getElementById('tp-val').textContent = signal.take_profit || '—';
-  document.getElementById('sl-val').textContent = signal.stop_loss || '—';
-  document.getElementById('rr-ratio').textContent = signal.rr_ratio || '—';
-  document.getElementById('rr-target').textContent = signal.rr_target || '—';
-  document.getElementById('rr-risk').textContent = signal.rr_risk || '—';
+  // TP / SL / RR
+  const tpEl = document.getElementById('tp-val');   if (tpEl) tpEl.textContent = signal.take_profit || '—';
+  const slEl = document.getElementById('sl-val');   if (slEl) slEl.textContent = signal.stop_loss   || '—';
+  const rrEl = document.getElementById('rr-ratio'); if (rrEl) rrEl.textContent = signal.rr_ratio    || '—';
+  const rtEl = document.getElementById('rr-target');if (rtEl) rtEl.textContent = signal.rr_target   || '—';
+  const rkEl = document.getElementById('rr-risk');  if (rkEl) rkEl.textContent = signal.rr_risk     || '—';
 
   // Confluences — render all 9 from market_context.confluences
   const confGrid = document.getElementById('conf-grid');
@@ -305,8 +615,8 @@ function populateSignal(signal) {
     const signalDir = (signal.direction || '').toUpperCase(); // LONG or SHORT
     confGrid.innerHTML = confData.map((c, i) => {
       const v = c.value.toLowerCase();
-      const isBullish = v.includes('bullish') || v.includes('above') || v.includes('hh/hl') || v.includes('aligned bullish');
-      const isBearish = v.includes('bearish') || v.includes('below') || v.includes('ll/lh') || v.includes('aligned bearish');
+      const isBullish = v.includes('bullish') || v.includes('above') || v.includes('hh/hl') || v.includes('aligned bullish') || v.includes('✅');
+      const isBearish = v.includes('bearish') || v.includes('below') || v.includes('ll/lh') || v.includes('aligned bearish') || v.includes('❌');
       // Aligned = confluence matches signal direction
       const aligned = (signalDir === 'LONG' && isBullish) || (signalDir === 'SHORT' && isBearish);
       const conflicting = (signalDir === 'LONG' && isBearish) || (signalDir === 'SHORT' && isBullish);
@@ -344,10 +654,89 @@ function populateSignal(signal) {
       hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles', timeZoneName: 'short'
     });
     const sess = signal.session === 'Asia' ? ' · Asia' : signal.session === 'London' ? ' · London' : ' · NY';
-    document.getElementById('signal-time').textContent = `Generated at ${t}${sess}`;
+    const stEl = document.getElementById('signal-time');
+    if (stEl) stEl.textContent = `Generated at ${t}${sess}`;
   }
 
   renderSpyOptions(signal);
+  renderChecklist(signal);
+  } catch (e) {
+    console.error('populateSignal crash:', e.message, e.stack);
+  }
+}
+
+// ── Trade Checklist ───────────────────────────────────────────────────────
+function renderChecklist(signal) {
+  const card      = document.getElementById('trade-checklist');
+  const itemsEl   = document.getElementById('checklist-items');
+  const verdictEl = document.getElementById('checklist-verdict');
+  const dirLabel  = document.getElementById('checklist-dir-label');
+  if (!card || !itemsEl || !verdictEl) return;
+
+  const dir      = (signal.direction || '').toUpperCase();
+  const confData = signal.market_context?.confluences || [];
+  if (!confData.length) { card.style.display = 'none'; return; }
+
+  const find = label => {
+    const c = confData.find(c => c.label.toLowerCase().includes(label.toLowerCase()));
+    return c ? c.value.toLowerCase() : '';
+  };
+
+  const accumPos = find('accum. breakout');
+  const imbEdge  = find('imbalance edge');
+  const spyRange = find('spy 30m range');
+  const spyVol   = find('spy 30m vol');
+
+  if (dirLabel) dirLabel.textContent = dir === 'LONG' ? 'Long Filters' : 'Short Filters';
+
+  const keyChecks = [
+    {
+      label: 'Accum. Breakout',
+      desc:  dir === 'LONG' ? 'Price must be above accumulation zone' : 'Price must be below accumulation zone',
+      pass:  dir === 'LONG' ? accumPos.includes('above') : accumPos.includes('below')
+    },
+    {
+      label: 'Imbalance Direction',
+      desc:  dir === 'LONG' ? 'More weighted FVGs above price' : 'More weighted FVGs below price',
+      pass:  dir === 'LONG' ? imbEdge.includes('bullish') : imbEdge.includes('bearish')
+    },
+    {
+      label: 'SPY 30M Range',
+      desc:  'Must be ≥ $2.50',
+      pass:  spyRange.includes('✅') || spyRange.includes('confirmed')
+    },
+    {
+      label: 'SPY 30M Volume',
+      desc:  'Must be ≥ 50k',
+      pass:  spyVol.includes('✅') || spyVol.includes('confirmed')
+    },
+  ];
+
+  const keyPasses = keyChecks.filter(c => c.pass).length;
+
+  // Verdict
+  let verdict, vClass;
+  if (keyPasses === 4)      { verdict = 'A+ GO';    vClass = 'verdict-go'; }
+  else if (keyPasses === 3) { verdict = 'GO ⚠';    vClass = 'verdict-go-warn'; }
+  else if (keyPasses === 2) { verdict = 'MARGINAL'; vClass = 'verdict-marginal'; }
+  else                      { verdict = 'NO-GO';    vClass = 'verdict-nogo'; }
+
+  verdictEl.className  = `checklist-verdict ${vClass}`;
+  verdictEl.textContent = verdict;
+
+  const renderItem = (c) => `
+    <div class="chk-item">
+      <span class="chk-icon ${c.pass ? 'chk-pass' : 'chk-fail'}">
+        <i class="ti ${c.pass ? 'ti-circle-check' : 'ti-circle-x'}"></i>
+      </span>
+      <div style="flex:1">
+        <div class="chk-label">${c.label} <span class="chk-key-badge">KEY</span></div>
+        <div class="chk-desc">${c.desc}</div>
+      </div>
+    </div>`;
+
+  itemsEl.innerHTML = keyChecks.map(c => renderItem(c)).join('');
+  card.style.display = 'block';
 }
 
 // ── Subtab switching ──────────────────────────────────────────────────────
@@ -455,31 +844,27 @@ async function adminRegenerateSignal() {
     clearInterval(countdown);
     await regenPromise; // make sure we know the real outcome before deciding what to show
 
-    if (regenStatus === 401) {
-      txt.textContent = 'Unauthorized — re-enter admin key';
-      btn.disabled = false;
-      return;
-    }
     if (regenStatus && regenStatus !== 200) {
       txt.textContent = `Failed (${regenStatus}): ${regenBody?.error || 'unknown error'}`;
       btn.disabled = false;
       return;
     }
 
-    try {
-      const r = await fetch(getEndpoint + '?t=' + Date.now(), { cache: 'no-store' });
-      const d = await r.json();
-      if (d.signal) {
-        populateSignal(d.signal);
-        txt.textContent = 'Signal Regenerated ✓';
-        btn.style.background = '#1D9E75';
-        setTimeout(() => { btn.disabled = false; txt.textContent = 'Regenerate Signal Now'; btn.style.background = ''; }, 3000);
-      } else {
-        txt.textContent = 'No signal returned — try again';
-        btn.disabled = false;
-      }
-    } catch(e) {
-      txt.textContent = 'Error checking signal: ' + e.message;
+    // Use signal directly from the generate response — no Redis dependency
+    const signal = regenBody?.signal;
+    if (signal) {
+      const todayKey = 'ba_signal_' + new Date().toISOString().slice(0, 10);
+      try { localStorage.setItem(todayKey, JSON.stringify(signal)); } catch {}
+      const bodyEl  = document.getElementById('signal-body');
+      const emptyEl = document.getElementById('signal-empty');
+      if (bodyEl)  bodyEl.style.display  = 'block';
+      if (emptyEl) emptyEl.style.display = 'none';
+      populateSignal(signal);
+      txt.textContent = 'Signal Regenerated ✓';
+      btn.style.background = '#1D9E75';
+      setTimeout(() => { btn.disabled = false; txt.textContent = 'Regenerate Signal Now'; btn.style.background = ''; }, 3000);
+    } else {
+      txt.textContent = 'No signal returned — try again';
       btn.disabled = false;
     }
   }, 6000);
@@ -883,37 +1268,114 @@ function buildCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     const el = document.createElement('div');
     el.className = 'cal-day';
-    el.textContent = d;
     el.onclick = () => cycleDay(d);
     const v = r[d];
     const isWin  = v === 'win' || v === 'lw' || v === 'sw';
     const isLoss = v === 'loss' || v === 'll' || v === 'sl';
-    const dirLabel = (v === 'lw' || v === 'll') ? 'L' : (v === 'sw' || v === 'sl') ? 'S' : '';
+    const isLong  = v === 'lw' || v === 'll';
+    const isShort = v === 'sw' || v === 'sl';
+    const dirLabel = isLong ? 'LONG' : isShort ? 'SHORT' : '';
     if (isCurrentMonth && d === TODAY_DAY) el.classList.add('today');
     else if (isWin)  el.classList.add('win');
     else if (isLoss) el.classList.add('loss');
     else if (isCurrentMonth && d > TODAY_DAY) el.classList.add('future');
-    el.innerHTML = d + (dirLabel ? `<span class="dir-badge">${dirLabel}</span>` : '');
+    el.innerHTML = `<span style="font-size:12px;font-weight:600">${d}</span>` +
+      (dirLabel ? `<span style="display:block;font-size:7px;font-weight:700;letter-spacing:.03em;margin-top:1px;opacity:0.85">${dirLabel}</span>` : '');
     grid.appendChild(el);
   }
+  // Trade log below calendar (only in calendar tab)
+  buildTradeLog(r, calViewYear, calViewMonth);
+}
+
+function buildTradeLog(r, y, m) {
+  const el = document.getElementById('cal-trade-log');
+  if (!el) return;
+  const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const days = Object.keys(r).filter(k => k !== '_ym').map(Number).filter(n => !isNaN(n)).sort((a,b) => b-a);
+  if (days.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">No trades logged yet this month.<br>Tap a calendar day to log a trade.</div>`;
+    return;
+  }
+  el.innerHTML = days.map(d => {
+    const v = r[String(d)];
+    const isWin   = v === 'win' || v === 'lw' || v === 'sw';
+    const isLong  = v === 'lw' || v === 'll';
+    const isShort = v === 'sw' || v === 'sl';
+    const dir     = isLong ? 'LONG' : isShort ? 'SHORT' : '—';
+    const dirColor = isLong ? 'var(--green)' : 'var(--red)';
+    const result  = isWin ? 'WIN' : 'LOSS';
+    const resColor = isWin ? 'var(--green)' : 'var(--red)';
+    const resBg    = isWin ? 'var(--green-light)' : 'var(--red-light)';
+    const pnl     = isWin ? '+$450' : '-$550';
+    const pnlColor = isWin ? 'var(--green)' : 'var(--red)';
+    const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(y, m, d).getDay()];
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border-radius:9px;border:0.5px solid var(--border);margin-bottom:6px">
+      <div style="text-align:center;min-width:32px">
+        <div style="font-size:18px;font-weight:700;color:var(--text-primary);line-height:1">${d}</div>
+        <div style="font-size:10px;color:var(--text-muted)">${dow} ${MN[m]}</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:${dirColor}">${dir}</div>
+        <div style="font-size:11px;color:var(--text-muted)">ES Futures · NY Open</div>
+      </div>
+      <div style="text-align:right">
+        <div style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${resBg};color:${resColor}">${result}</div>
+        <div style="font-size:13px;font-weight:700;color:${pnlColor};margin-top:4px">${pnl}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function cycleDay(d) {
   const r = getCalResults();
   const cur = r[d];
-  // Cycle: empty → lw (long win) → ll (long loss) → sw (short win) → sl (short loss) → empty
-  // Backward compat: old 'win' continues from lw, old 'loss' continues from ll
+  // Cycle: empty → Long Win → Long Loss → Short Win → Short Loss → clear
   if (!cur)              r[d] = 'lw';
   else if (cur === 'lw') r[d] = 'll';
   else if (cur === 'll') r[d] = 'sw';
   else if (cur === 'sw') r[d] = 'sl';
-  else delete r[d];
+  else                   delete r[d];
   setCalResults(r);
   buildCalendar();
   updateStats();
+  updateCalStats();
   buildBacktestCard('ny');
-  buildBacktestCard('london');
-  buildBacktestCard('asia');
+}
+
+function updateCalStats() {
+  const r = getCalResults();
+  const vals = Object.values(r).filter(v => v !== '_ym');
+  const w = vals.filter(v => v === 'win' || v === 'lw' || v === 'sw').length;
+  const l = vals.filter(v => v === 'loss' || v === 'll' || v === 'sl').length;
+  const total = w + l;
+  const pct = total > 0 ? Math.round(w / total * 100) : 0;
+  const pnl = w * 450 - l * 550;
+  const pnlStr = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toLocaleString();
+
+  // Current streak
+  const days = Object.keys(r).filter(k => k !== '_ym').map(Number).sort((a,b)=>a-b);
+  let streak = 0, streakLabel = '—';
+  for (let i = days.length - 1; i >= 0; i--) {
+    const v = r[String(days[i])];
+    const isW = v === 'win' || v === 'lw' || v === 'sw';
+    const isL = v === 'loss' || v === 'll' || v === 'sl';
+    if (i === days.length - 1) { streak = isW ? 1 : isL ? -1 : 0; }
+    else {
+      const isWin2 = streak > 0;
+      if (isWin2 && isW) streak++;
+      else if (!isWin2 && isL) streak--;
+      else break;
+    }
+  }
+  if (streak > 0)  streakLabel = `${streak}W streak 🔥`;
+  else if (streak < 0) streakLabel = `${Math.abs(streak)}L streak`;
+
+  const el = id => document.getElementById(id);
+  if (el('cal-wr-pct'))  { el('cal-wr-pct').textContent = pct + '%'; el('cal-wr-pct').style.color = pct >= 60 ? 'var(--green)' : pct >= 50 ? 'var(--gold)' : 'var(--red)'; }
+  if (el('cal-wr-sub'))  el('cal-wr-sub').textContent = `${w}W / ${l}L`;
+  if (el('cal-pnl'))     { el('cal-pnl').textContent = pnlStr; el('cal-pnl').style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)'; }
+  if (el('cal-total'))   el('cal-total').textContent = total;
+  if (el('cal-streak'))  el('cal-streak').textContent = streakLabel;
 }
 
 // ── Activity bars ─────────────────────────────────────────────────────────
@@ -1045,13 +1507,10 @@ function initCharts() {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 applyRole();
-applySessionUI(currentSession);
-applyBacktestUI(currentSession);
+applyBacktestUI('ny');
 buildCalendar();
 updateStats();
 buildBacktestCard('ny');
-buildBacktestCard('london');
-buildBacktestCard('asia');
 loadSignal();
 
 // Load real results from Redis (syncs phone + desktop)

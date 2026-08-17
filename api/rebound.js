@@ -39,7 +39,7 @@ export default async function handler(req, res) {
         direction: state.pending.direction,
         entry: state.pending.entry,
         exit: parseFloat(price),
-        result: isWin ? 'WIN' : 'LOSS',
+        result: isWin ? 'win' : 'loss',
         pnl,
         balance: lastBal + pnl,
         tp: state.pending.entry + (state.pending.direction === 'LONG' ? s.tpPts : -s.tpPts),
@@ -76,8 +76,9 @@ export default async function handler(req, res) {
       const { result, direction, entry, exit, note } = req.body || {};
       const s = state.settings;
       const todayKey = utcDateKey();
-      const isWin = result === 'WIN';
-      const isNoTrade = result === 'NO_TRADE';
+      const resultNorm = (result || '').toLowerCase();
+      const isWin = resultNorm === 'win';
+      const isNoTrade = resultNorm === 'no_trade' || resultNorm === 'no-trade';
       const pnl = isNoTrade ? 0 : (isWin ? s.winAmount * s.contracts : -(s.lossAmount * s.contracts));
       const lastBal = state.trades.length ? state.trades[state.trades.length - 1].balance : s.startBalance;
       const trade = {
@@ -86,7 +87,7 @@ export default async function handler(req, res) {
         direction: direction || (state.pending ? state.pending.direction : '—'),
         entry: entry || (state.pending ? state.pending.entry : null),
         exit: exit || null,
-        result,
+        result: resultNorm,
         pnl,
         balance: isNoTrade ? lastBal : lastBal + pnl,
         tp: state.pending ? state.pending.entry + (state.pending.direction === 'LONG' ? s.tpPts : -s.tpPts) : null,

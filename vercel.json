@@ -18,8 +18,6 @@
     }
   ],
   "crons": [
-    { "path": "/api/generate-signal",        "schedule": "0 13 * * 1-5" },
-    { "path": "/api/generate-london-signal", "schedule": "45 7 * * 1-5" },
-    { "path": "/api/generate-asia-signal",   "schedule": "0 23 * * 0-4" }
+    { "path": "/api/generate-signal", "schedule": "15 13 * * 1-5" }
   ]
 }

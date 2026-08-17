@@ -261,6 +261,22 @@ body {
 .status-key { color: var(--text-muted); }
 .status-val { font-weight: 500; color: var(--text-primary); }
 
+/* ── Trade Checklist ── */
+.chk-item { display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--border); }
+.chk-item:last-child { border-bottom:none; }
+.chk-icon { font-size:16px;flex-shrink:0; }
+.chk-pass { color:#1D9E75; }
+.chk-fail { color:#E05252; }
+.chk-label { font-size:13px;font-weight:500;color:var(--text-primary);line-height:1.3; }
+.chk-key-badge { font-size:9px;background:rgba(83,74,183,.15);color:#534AB7;padding:1px 5px;border-radius:4px;letter-spacing:.05em;font-weight:600;margin-left:5px;vertical-align:middle; }
+.chk-desc { font-size:11px;color:var(--text-muted);margin-top:1px; }
+.chk-divider { font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);padding:10px 0 6px;border-top:0.5px solid var(--border);margin-top:4px; }
+.checklist-verdict { font-size:11px;font-weight:700;letter-spacing:.05em;padding:4px 10px;border-radius:6px; }
+.verdict-go       { background:rgba(29,158,117,.12);color:#1D9E75;border:0.5px solid rgba(29,158,117,.3); }
+.verdict-go-warn  { background:rgba(230,160,45,.1);color:#E6A02D;border:0.5px solid rgba(230,160,45,.25); }
+.verdict-marginal { background:rgba(230,160,45,.1);color:#E6A02D;border:0.5px solid rgba(230,160,45,.25); }
+.verdict-nogo     { background:rgba(224,82,82,.1);color:#E05252;border:0.5px solid rgba(224,82,82,.25); }
+
 /* ── Calendar ── */
 .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .cal-title { font-size: 14px; font-weight: 500; color: var(--text-primary); }
@@ -347,3 +363,15 @@ body {
 .jc-section-label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: 3px; }
 .jc-text { font-size: 13px; color: var(--text-sub); margin-bottom: 10px; line-height: 1.5; }
 .journal-cta { background: var(--purple-light); border: 0.5px solid var(--purple-mid); border-radius: var(--radius); padding: 14px 18px; margin-top: 16px; font-size: 13px; color: var(--purple); display: flex; align-items: center; gap: 8px; }
+
+/* Journal action / result buttons */
+.j-action-btn, .j-result-btn {
+  flex: 1; padding: 9px 8px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text-muted); font-family: inherit;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.j-action-btn.active[data-val="long"]    { border-color: var(--green); background: var(--green-light); color: var(--green); }
+.j-action-btn.active[data-val="short"]   { border-color: var(--red);   background: var(--red-light);   color: var(--red); }
+.j-action-btn.active[data-val="skipped"] { border-color: var(--purple); background: var(--purple-light); color: var(--purple); }
+.j-result-btn.active[data-val="win"]     { border-color: var(--green); background: var(--green-light); color: var(--green); }
+.j-result-btn.active[data-val="loss"]    { border-color: var(--red);   background: var(--red-light);   color: var(--red); }

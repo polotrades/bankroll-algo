@@ -13,28 +13,6 @@
 </head>
 <body>
 
-<!-- Preview Banner -->
-<div class="preview-banner" id="preview-banner">
-  <i class="ti ti-lock"></i>
-  PREVIEW MODE — SENSITIVE DETAILS ARE HIDDEN.
-  <button class="unlock-btn" onclick="openUnlock()">UNLOCK ACCESS</button>
-</div>
-
-<!-- Unlock Modal -->
-<div class="modal-overlay" id="modal-overlay" onclick="closeUnlock()">
-  <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <div class="modal-title"><i class="ti ti-lock-open" style="color:#534AB7"></i> Enter Access Code</div>
-      <button class="modal-close" onclick="closeUnlock()"><i class="ti ti-x"></i></button>
-    </div>
-    <p class="modal-sub">Enter your member password to unlock Take Profit, Stop Loss, and full confluences.</p>
-    <input type="password" id="pw-input" class="pw-input" placeholder="Enter password..." onkeydown="if(event.key==='Enter')checkPassword()">
-    <div class="pw-error" id="pw-error">Incorrect password. Try again.</div>
-    <button class="pw-submit" onclick="checkPassword()">
-      <span id="pw-btn-text">Unlock</span>
-    </button>
-  </div>
-</div>
 
 <!-- Main Container -->
 <div class="container">
@@ -47,32 +25,28 @@
       <div class="header-sub">S&P 500 · Daily Signal</div>
     </div>
     <div class="header-perf">
-      <div class="perf-label" id="perf-month-label">June 2026 Performance</div>
+      <div class="perf-label" id="perf-month-label">August 2026 Performance</div>
       <div class="perf-badges">
-        <span class="badge-w" id="w-badge">2W</span>
-        <span class="badge-l" id="l-badge">1L</span>
+        <span class="badge-w" id="w-badge">0W</span>
+        <span class="badge-l" id="l-badge">0L</span>
         <span class="perf-wr-label">Win Rate</span>
       </div>
     </div>
     <div class="header-bar-right">
       <div class="win-bar-wrap">
-        <div class="win-bar-bg"><div class="win-bar-fill" id="win-bar" style="width:67%"></div></div>
-        <span class="win-pct" id="win-pct-txt">67%</span>
+        <div class="win-bar-bg"><div class="win-bar-fill" id="win-bar" style="width:0%"></div></div>
+        <span class="win-pct" id="win-pct-txt">0%</span>
       </div>
     </div>
   </div>
 
-  <!-- Access Badge -->
-  <div class="access-row">
-    <div class="access-badge" id="access-badge">
-      <i class="ti ti-eye-off"></i> Preview Mode
-    </div>
-    <div class="signal-time" id="signal-time"></div>
-  </div>
+  <div style="height:4px"></div>
 
   <!-- Tabs -->
   <div class="tabs">
     <div class="tab active" onclick="switchTab('signal')">Signal</div>
+    <div class="tab" onclick="switchTab('calendar')">Calendar</div>
+    <div class="tab" onclick="switchTab('journal')">Journal</div>
     <div class="tab" onclick="switchTab('performance')">Performance</div>
     <div class="tab" onclick="switchTab('market')">Market Data</div>
   </div>
@@ -83,20 +57,14 @@
       <div class="active-pill"><div class="active-dot"></div>Active</div>
       <div class="date-str" id="today-date"></div>
     </div>
-    <!-- Session toggle -->
-    <div style="display:flex;gap:0;margin-bottom:14px;background:var(--surface-2);border:0.5px solid var(--border-med);border-radius:10px;padding:3px">
-      <button id="sess-ny" onclick="switchSession('ny')"
-        style="flex:1;padding:9px;border-radius:8px;border:none;background:var(--purple);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em">
-        NY Session
-      </button>
-      <button id="sess-london" onclick="switchSession('london')"
-        style="flex:1;padding:9px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em">
-        London
-      </button>
-      <button id="sess-asia" onclick="switchSession('asia')"
-        style="flex:1;padding:9px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em">
-        Asia Session
-      </button>
+    <!-- Signal countdown -->
+    <div id="signal-countdown" style="display:flex;align-items:center;justify-content:space-between;background:var(--surface-2);border:0.5px solid var(--border-med);border-radius:10px;padding:10px 14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:8px;height:8px;border-radius:50%;background:#534AB7;box-shadow:0 0 6px #534AB7;flex-shrink:0"></div>
+        <span style="font-size:13px;font-weight:600;color:var(--text-primary)">NY Session Signal</span>
+        <span style="font-size:11px;color:var(--text-muted)">· 6:15 AM PT Mon–Fri</span>
+      </div>
+      <div id="next-signal-timer" style="font-size:13px;font-weight:700;color:#534AB7;font-family:'DM Mono',monospace">--:--:--</div>
     </div>
 
     <div class="subtab-row">
@@ -118,7 +86,7 @@
     </div>
 
     <!-- Loading state -->
-    <div id="signal-loading" class="signal-loading">
+    <div id="signal-loading" class="signal-loading" style="display:none">
       <div class="loading-spinner"></div>
       <div class="loading-text">Loading today's signal...</div>
     </div>
@@ -140,24 +108,15 @@
             <div class="card-label">Risk / Reward</div>
             <div class="rr-row">
               <span class="rr-label">Ratio</span>
-              <div class="rr-locked lockable" id="rr-ratio-wrap">
-                <div class="locked-state"><i class="ti ti-lock"></i><span>Members</span></div>
-                <div class="unlocked-state rr-val" id="rr-ratio">—</div>
-              </div>
+              <div class="rr-val" id="rr-ratio">—</div>
             </div>
             <div class="rr-row">
               <span class="rr-label tp-color">Target</span>
-              <div class="rr-locked lockable" id="rr-target-wrap">
-                <div class="locked-state"><i class="ti ti-lock"></i><span>Members</span></div>
-                <div class="unlocked-state rr-val tp-color" id="rr-target">—</div>
-              </div>
+              <div class="rr-val tp-color" id="rr-target">—</div>
             </div>
             <div class="rr-row">
               <span class="rr-label sl-color">Risk</span>
-              <div class="rr-locked lockable" id="rr-risk-wrap">
-                <div class="locked-state"><i class="ti ti-lock"></i><span>Members</span></div>
-                <div class="unlocked-state rr-val sl-color" id="rr-risk">—</div>
-              </div>
+              <div class="rr-val sl-color" id="rr-risk">—</div>
             </div>
             <div class="rr-row"><span class="rr-label">Entry</span><span class="rr-val">Market Open</span></div>
           </div>
@@ -172,28 +131,12 @@
             </div>
             <div class="tp-sl-grid">
               <div class="tp-card">
-                <div class="tp-label">Take Profit <i class="ti ti-lock" style="font-size:11px" id="tp-lock-icon"></i></div>
-                <div class="lockable" id="tp-wrap">
-                  <div class="locked-state">
-                    <div class="locked-pill"><i class="ti ti-lock"></i><span>Members only</span></div>
-                    <div class="locked-blur tp-color">5,612</div>
-                  </div>
-                  <div class="unlocked-state">
-                    <div class="unlocked-price tp-color" id="tp-val">—</div>
-                  </div>
-                </div>
+                <div class="tp-label">Take Profit</div>
+                <div class="unlocked-price tp-color" id="tp-val">—</div>
               </div>
               <div class="sl-card">
-                <div class="sl-label">Stop Loss <i class="ti ti-lock" style="font-size:11px" id="sl-lock-icon"></i></div>
-                <div class="lockable" id="sl-wrap">
-                  <div class="locked-state">
-                    <div class="locked-pill"><i class="ti ti-lock"></i><span>Members only</span></div>
-                    <div class="locked-blur sl-color">5,578</div>
-                  </div>
-                  <div class="unlocked-state">
-                    <div class="unlocked-price sl-color" id="sl-val">—</div>
-                  </div>
-                </div>
+                <div class="sl-label">Stop Loss</div>
+                <div class="unlocked-price sl-color" id="sl-val">—</div>
               </div>
             </div>
 
@@ -212,7 +155,7 @@
             </div>
 
             <!-- Admin panel -->
-            <div id="admin-panel" style="display:none;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)">
+            <div id="admin-panel" style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)">
               <div class="card-label" style="color:#534AB7">Admin Controls</div>
               <button class="gen-btn" onclick="adminRegenerateSignal()" id="regen-btn">
                 <i class="ti ti-refresh"></i>
@@ -235,32 +178,76 @@
             <div class="status-row"><span class="status-key">Bias</span><span class="status-val sl-color" id="bias-txt">Bearish</span></div>
             <div class="status-row"><span class="status-key">Confidence</span><span class="status-val purple" id="conf-lvl">High</span></div>
           </div>
-          <div class="card">
-            <div class="cal-header">
-              <button onclick="calNav(-1)" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;font-family:inherit">‹</button>
-              <span class="cal-title" id="cal-title">June 2026</span>
-              <button onclick="calNav(1)" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;font-family:inherit">›</button>
-              <span class="cal-hint" id="cal-hint">tap day to edit</span>
-            </div>
-            <div class="cal-grid" id="cal-grid"></div>
-            <div class="cal-stats" id="cal-stats"></div>
-          </div>
         </div>
       </div>
     </div>
 
+    <!-- Trade Checklist -->
+    <div class="card" id="trade-checklist" style="margin-top:12px;display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span class="card-label" style="margin-bottom:0">Trade Checklist</span>
+        <span id="checklist-verdict" class="checklist-verdict"></span>
+      </div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px" id="checklist-dir-label">Key Filters</div>
+      <div id="checklist-items"></div>
+    </div>
+
+    <!-- Funded Account Sizing -->
+    <div class="card" id="sz-card" style="margin-top:12px;display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span class="card-label" style="margin-bottom:0">TopStep $50k Sizing</span>
+        <span id="sz-badge"></span>
+      </div>
+      <div id="sz-body"></div>
+    </div>
+
     <!-- No signal yet state -->
-    <div id="signal-empty" style="display:none">
+    <div id="signal-empty" style="display:block">
       <div class="empty-state">
         <i class="ti ti-clock" style="font-size:32px;color:#534AB7;margin-bottom:12px"></i>
         <div class="empty-title">Signal Pending</div>
-        <div class="empty-sub">Today's signal generates automatically at 6:00 AM PT. Check back before market open.</div>
+        <div class="empty-sub">Today's signal generates automatically at 6:15 AM PT Mon–Fri. Check back before market open.</div>
       </div>
-      <div id="admin-panel-empty" style="display:none;margin-top:12px;padding:12px;border-top:0.5px solid var(--border)">
+      <div id="admin-panel-empty" style="margin-top:12px;padding:12px;border-top:0.5px solid var(--border)">
         <button class="gen-btn" onclick="adminRegenerateSignal()" id="regen-btn-empty">
           <i class="ti ti-refresh"></i>
           <span id="regen-btn-empty-text">Regenerate Signal Now</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CALENDAR TAB ===== -->
+  <div id="tab-calendar" class="tab-content">
+    <div class="card">
+      <div class="cal-header">
+        <button onclick="calNav(-1)" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;font-family:inherit">‹</button>
+        <span class="cal-title" id="cal-title">August 2026</span>
+        <button onclick="calNav(1)" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;font-family:inherit">›</button>
+        <span class="cal-hint" id="cal-hint">tap to log W / L</span>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-stats" id="cal-stats"></div>
+      <div style="margin-top:12px;padding:10px 12px;background:var(--bg);border-radius:8px;border:0.5px solid var(--border);display:flex;gap:16px;align-items:center">
+        <span style="font-size:11px;color:var(--text-muted)">Tap a day to cycle:</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--green)"><span style="width:14px;height:14px;border-radius:3px;background:var(--green);display:inline-block"></span>Win</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--red)"><span style="width:14px;height:14px;border-radius:3px;background:var(--red);display:inline-block"></span>Loss</span>
+        <span style="font-size:11px;color:var(--text-muted);margin-left:auto">tap again → clear</span>
+      </div>
+    </div>
+
+    <!-- Monthly Stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px">
+      <div class="perf-stat-card"><div class="psc-label">Win Rate</div><div class="psc-val tp-color" id="cal-wr-pct">0%</div><div class="psc-sub" id="cal-wr-sub">0W / 0L</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Net P&L</div><div class="psc-val" id="cal-pnl">$0</div><div class="psc-sub">1 contract</div></div>
+      <div class="perf-stat-card"><div class="psc-label">Trades</div><div class="psc-val" id="cal-total">0</div><div class="psc-sub" id="cal-streak">—</div></div>
+    </div>
+
+    <!-- Trade Log -->
+    <div class="card" style="margin-top:12px">
+      <div class="card-label" style="margin-bottom:12px">Trade Log</div>
+      <div id="cal-trade-log">
+        <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">No trades logged yet.<br>Tap a calendar day to log a trade.</div>
       </div>
     </div>
   </div>
@@ -271,6 +258,7 @@
       <button class="mf-btn active" onclick="setMonthFilter(this)">All Time</button>
       <button class="mf-btn" onclick="setMonthFilter(this)">Jun</button>
       <button class="mf-btn" onclick="setMonthFilter(this)">Jul</button>
+      <button class="mf-btn" onclick="setMonthFilter(this)">Aug</button>
     </div>
     <div class="perf-stats-grid">
       <div class="perf-stat-card"><div class="psc-label">Total Signals</div><div class="psc-val" id="perf-total">0</div><div class="psc-sub" id="perf-wl">0W / 0L</div></div>
@@ -282,6 +270,20 @@
       <div class="perf-stat-card"><div class="psc-label">Avg Win (1 contract)</div><div class="psc-val tp-color">+$450</div><div class="psc-sub">+9 pts</div></div>
       <div class="perf-stat-card"><div class="psc-label">Avg Loss (1 contract)</div><div class="psc-val sl-color">-$550</div><div class="psc-sub">-11 pts</div></div>
     </div>
+    <!-- Weekly P&L -->
+    <div class="card" style="margin-top:12px" id="weekly-pnl-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="card-label" style="margin-bottom:0">Weekly P&amp;L</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button onclick="perfWeekNav(-1)" style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:6px;color:var(--text-primary);padding:3px 10px;font-size:14px;cursor:pointer">‹</button>
+          <span id="perf-week-label" style="font-size:12px;color:var(--text-muted);white-space:nowrap"></span>
+          <button onclick="perfWeekNav(1)" style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:6px;color:var(--text-primary);padding:3px 10px;font-size:14px;cursor:pointer">›</button>
+        </div>
+      </div>
+      <div id="perf-week-day-strip" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="perf-week-stats"></div>
+    </div>
+
     <div id="bt-ny"     style="display:block;margin-top:12px"></div>
     <div id="bt-london" style="display:none;margin-top:12px"></div>
     <div id="bt-asia"   style="display:none;margin-top:12px"></div>
@@ -363,17 +365,164 @@
 
   <!-- ===== JOURNAL TAB ===== -->
   <div id="tab-journal" class="tab-content">
-    <div class="journal-header">
-      <i class="ti ti-book-2" style="color:#534AB7;font-size:18px"></i>
-      <span class="journal-title">Community Trade Journal</span>
-      <span class="journal-readonly">Read Only</span>
+
+    <!-- New Entry Form -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-label" style="margin-bottom:14px">Log Today's Trade</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Date</div>
+          <input type="date" id="j-date" style="width:100%;padding:9px 11px;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:13px;outline:none">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Session</div>
+          <select id="j-session" style="width:100%;padding:9px 11px;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:13px;outline:none;appearance:none">
+            <option value="ny">NY Session</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:7px;text-transform:uppercase;letter-spacing:.05em">What did you do?</div>
+        <div style="display:flex;gap:8px">
+          <button class="j-action-btn active" data-val="long"    onclick="selectJAction(this)">📈 Long</button>
+          <button class="j-action-btn"         data-val="short"   onclick="selectJAction(this)">📉 Short</button>
+          <button class="j-action-btn"         data-val="skipped" onclick="selectJAction(this)">⏭ Skipped</button>
+        </div>
+      </div>
+
+      <div id="j-result-row" style="margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:7px;text-transform:uppercase;letter-spacing:.05em">Result</div>
+        <div style="display:flex;gap:8px">
+          <button class="j-result-btn active" data-val="win"  onclick="selectJResult(this)">✅ Win</button>
+          <button class="j-result-btn"         data-val="loss" onclick="selectJResult(this)">❌ Loss</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Notes</div>
+        <textarea id="j-notes" rows="3" placeholder="What did you see? Why did you take or skip? How did it feel?" style="width:100%;padding:9px 11px;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:13px;outline:none;resize:vertical;box-sizing:border-box"></textarea>
+      </div>
+
+      <button onclick="saveJournalEntry()" style="width:100%;padding:11px;background:#534AB7;border:none;border-radius:9px;color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.01em">Save Entry</button>
     </div>
-    <div class="journal-grid" id="journal-grid"></div>
-    <div class="journal-cta"><i class="ti ti-lock"></i> Join to add your own trade entries and track your personal performance.</div>
+
+    <!-- Entry List -->
+    <div id="journal-entries"></div>
+
+    <!-- Weekly Review -->
+    <div class="card" style="margin-top:12px" id="weekly-review-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="card-label" style="margin-bottom:0">Weekly Review</div>
+        <div style="display:flex;gap:6px">
+          <button onclick="weekNav(-1)" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1">‹</button>
+          <span id="week-label" style="font-size:12px;font-weight:600;color:var(--text-primary);align-self:center"></span>
+          <button onclick="weekNav(1)" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1">›</button>
+        </div>
+      </div>
+
+      <!-- Week day strip -->
+      <div id="week-day-strip" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px"></div>
+
+      <!-- Week stats -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px" id="week-stats"></div>
+
+      <!-- Weekly notes -->
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Weekly Notes</div>
+        <textarea id="week-notes" rows="3" placeholder="How was this week? What did the market do? What did you learn? What to improve?" style="width:100%;padding:9px 11px;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:13px;outline:none;resize:vertical;box-sizing:border-box"></textarea>
+        <button onclick="saveWeekNotes()" style="margin-top:8px;padding:8px 16px;background:#534AB7;border:none;border-radius:8px;color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Save Notes</button>
+      </div>
+    </div>
   </div>
 
 </div>
 
-<script src="app.js?v=6"></script>
+<script src="app.js?v=16"></script>
+<script>
+// ── TopStep Sizing Card ──────────────────────────────────────────
+// Reads the Trade Checklist verdict and shows contract size + math
+(function(){
+  // TopStep $50k settings
+  var ACCOUNT = { target: 3000, dd: 2000 };
+  var C1 = { win: 450, loss: 550, label: '1 contract · +9pts', rlabel: '1 contract · −11pts' };
+  var C2 = { win: 900, loss: 1100, label: '2 contracts · +18pts', rlabel: '2 contracts · −22pts' };
+
+  function classify(verdict) {
+    if (!verdict) return null;
+    var v = verdict.toUpperCase();
+    if (v.indexOf('A+') !== -1) return 'up';
+    if (v.indexOf('GO') !== -1 && v.indexOf('NO') === -1) return 'std';
+    if (v.indexOf('MARGINAL') !== -1 || v.indexOf('NO') !== -1) return 'skip';
+    return null;
+  }
+
+  function wins(amount) { return Math.ceil(ACCOUNT.target / amount); }
+
+  function update() {
+    var vEl = document.getElementById('checklist-verdict');
+    var card = document.getElementById('sz-card');
+    var badge = document.getElementById('sz-badge');
+    var body = document.getElementById('sz-body');
+    if (!vEl || !card || !badge || !body) return;
+
+    var verdict = vEl.textContent.trim();
+    var tier = classify(verdict);
+    if (!tier || !verdict) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+
+    var winBox = function(c) {
+      return '<div style="background:rgba(0,204,85,.06);border:1px solid rgba(0,204,85,.2);border-radius:8px;padding:12px;text-align:center">' +
+        '<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">WIN</div>' +
+        '<div style="font-size:20px;font-weight:700;color:#00CC55">+$' + c.win + '</div>' +
+        '<div style="font-size:10px;color:var(--text-muted);margin-top:2px">' + c.label + '</div></div>';
+    };
+    var lossBox = function(c) {
+      return '<div style="background:rgba(224,48,48,.05);border:1px solid rgba(224,48,48,.18);border-radius:8px;padding:12px;text-align:center">' +
+        '<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">RISK</div>' +
+        '<div style="font-size:20px;font-weight:700;color:#E03030">−$' + c.loss + '</div>' +
+        '<div style="font-size:10px;color:var(--text-muted);margin-top:2px">' + c.rlabel + '</div></div>';
+    };
+
+    if (tier === 'up') {
+      badge.innerHTML = '🚀 SIZE UP · 2 CONTRACTS';
+      badge.style.cssText = 'padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(255,214,0,.12);color:#ffd600;border:1px solid rgba(255,214,0,.35)';
+      body.innerHTML =
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">' + winBox(C2) + lossBox(C2) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);line-height:1.7;padding:11px 13px;background:rgba(255,214,0,.04);border-radius:8px;border-left:2px solid rgba(255,214,0,.4)">' +
+        'A+ GO — all filters green. <strong style="color:#ffd600">Trade 2 contracts.</strong><br>' +
+        'Need ~' + wins(C2.win) + ' wins at this size to hit $3k target. Drop to 1 contract after any loss.' +
+        '</div>';
+    } else if (tier === 'std') {
+      badge.innerHTML = '✓ STANDARD · 1 CONTRACT';
+      badge.style.cssText = 'padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(79,195,247,.1);color:#4fc3f7;border:1px solid rgba(79,195,247,.3)';
+      body.innerHTML =
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">' + winBox(C1) + lossBox(C1) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);line-height:1.7;padding:11px 13px;background:rgba(79,195,247,.04);border-radius:8px;border-left:2px solid rgba(79,195,247,.35)">' +
+        'GO signal — most filters green. <strong style="color:#4fc3f7">Stick to 1 contract.</strong><br>' +
+        'Need ~' + wins(C1.win) + ' wins at this size to hit $3k target. Wait for A+ before sizing up.' +
+        '</div>';
+    } else {
+      badge.innerHTML = '✗ SKIP SESSION';
+      badge.style.cssText = 'padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(224,48,48,.08);color:#E03030;border:1px solid rgba(224,48,48,.25)';
+      body.innerHTML =
+        '<div style="font-size:11px;color:var(--text-muted);line-height:1.7;padding:12px 14px;background:rgba(224,48,48,.04);border-radius:8px;border-left:2px solid rgba(224,48,48,.3)">' +
+        '<strong style="color:#E03030">Do not trade this session.</strong> Signal is MARGINAL or NO-GO.<br>' +
+        'Protect your $2k trailing drawdown. A bad trade here costs more than a good one earns.' +
+        '</div>';
+    }
+  }
+
+  // Watch checklist verdict for dynamic updates
+  function attach() {
+    var el = document.getElementById('checklist-verdict');
+    if (!el) { setTimeout(attach, 500); return; }
+    update();
+    new MutationObserver(update).observe(el, { childList: true, characterData: true, subtree: true });
+  }
+  setTimeout(attach, 800);
+})();
+</script>
 </body>
 </html>

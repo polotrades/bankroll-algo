@@ -184,8 +184,9 @@ scoreColor = score >= 85 ? color.new(#00e676, 0) :
 
 // ── WIN RATE TRACKER (valid / unfiltered signals only) ───────
 // Entry signals: bar AFTER the valid signal, at open (= same price webhook sends)
-bullEntrySignal = bullValid[1]
-bearEntrySignal = bearValid[1]
+// Suppressed if a NEW skip fires on the entry bar itself (avoids contradictory alerts)
+bullEntrySignal = bullValid[1] and not (bullFiltered or bearFiltered)
+bearEntrySignal = bearValid[1] and not (bullFiltered or bearFiltered)
 
 var int   totalWins   = 0
 var int   totalLosses = 0
