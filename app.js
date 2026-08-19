@@ -1244,6 +1244,7 @@ function buildDayWinRate() {
 
 function buildCalendar() {
   const grid = document.getElementById('cal-grid');
+  if (!grid) return;
   const isCurrentMonth = (calViewYear === TODAY_YEAR && calViewMonth === TODAY_MONTH);
 
   // Update header title + hint visibility
