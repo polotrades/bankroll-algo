@@ -63,7 +63,10 @@
         </div>
         <div>
           <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Volume (k)</div>
-          <input type="number" id="spy-vol-input" step="0.1" placeholder="e.g. 440" style="width:100%;padding:9px 11px;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:14px;outline:none">
+          <div style="position:relative">
+            <input type="text" id="spy-vol-input" placeholder="e.g. 55k" style="width:100%;padding:9px 32px 9px 11px;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:14px;outline:none;box-sizing:border-box">
+            <span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:600;color:var(--text-muted);pointer-events:none">K</span>
+          </div>
         </div>
       </div>
       <button onclick="applySpyInputs()" style="width:100%;padding:10px;background:#534AB7;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Apply</button>

@@ -691,7 +691,8 @@ function populateSignal(signal) {
 // ── Trade Checklist ───────────────────────────────────────────────────────
 function applySpyInputs() {
   const rangeVal = parseFloat(document.getElementById('spy-range-input')?.value || '0');
-  const volVal   = parseFloat(document.getElementById('spy-vol-input')?.value   || '0');
+  const volRaw   = (document.getElementById('spy-vol-input')?.value || '').trim().toLowerCase();
+  const volVal   = volRaw.endsWith('k') ? parseFloat(volRaw) * 1000 : parseFloat(volRaw) || 0;
   if (!rangeVal && !volVal) return;
 
   // Store in localStorage for the day
@@ -707,7 +708,7 @@ function applySpyInputs() {
       const rIdx = confs.findIndex(c => c.label.toLowerCase().includes('spy 30m range'));
       const vIdx = confs.findIndex(c => c.label.toLowerCase().includes('spy 30m vol'));
       const rOk  = rangeVal >= 2.50;
-      const vOk  = volVal   >= 50;
+      const vOk  = volVal   >= 50000;
       if (rIdx >= 0) confs[rIdx].value = `$${rangeVal.toFixed(2)} — ${rOk ? '✅ confirmed (≥$2.50)' : '❌ below $2.50 min'}`;
       if (vIdx >= 0) confs[vIdx].value = `${volVal.toFixed(1)}k — ${vOk ? '✅ confirmed (≥50k)' : '❌ below 50k min'}`;
       cached.no_trade = !(rOk && vOk && cached.market_context?.imb_direction !== 'NEUTRAL');
