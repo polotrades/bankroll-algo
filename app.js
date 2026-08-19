@@ -506,13 +506,12 @@ function showEmpty() {
   const empty     = document.getElementById('signal-empty');
   const checklist = document.getElementById('trade-checklist');
   const szCard    = document.getElementById('sz-card');
-  const spyCard = document.getElementById('spy-input-card');
   if (loading)   loading.style.display   = 'none';
   if (body)      body.style.display      = 'none';
   if (empty)     empty.style.display     = 'block';
   if (checklist) checklist.style.display = 'none';
   if (szCard)    szCard.style.display    = 'none';
-  if (spyCard)   spyCard.style.display   = 'none';
+  // spy-input-card stays visible always — do not hide here
 }
 
 async function loadSignal() {
