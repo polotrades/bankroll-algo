@@ -166,48 +166,29 @@ export default async function handler(req, res) {
         const spyLows  = spyQuote.low    || [];
         const spyVols  = spyQuote.volume || [];
 
-        // Overnight range: 1AM PT to 6AM PT (low to high)
-        // 1AM PT = 9:00 UTC (PDT/summer) or 8:00 UTC (PST/winter)
-        // 6AM PT = 14:00 UTC (PDT) or 13:00 UTC (PST)
-        function isPTWindow(ts) {
+        // Range: all 30M bars from 1:00 AM PT to 6:30 AM PT (market open)
+        function isInWindow(ts) {
           const d = new Date(ts * 1000);
           const yr = d.getUTCFullYear();
           const dstStart = new Date(Date.UTC(yr, 2, 8 - new Date(Date.UTC(yr, 2, 1)).getUTCDay()));
           const dstEnd   = new Date(Date.UTC(yr, 10, 1 - new Date(Date.UTC(yr, 10, 1)).getUTCDay()));
           const ptOffset = (d >= dstStart && d < dstEnd) ? -7 : -8;
-          const ptHour   = (d.getUTCHours() + 24 + ptOffset) % 24;
-          return ptHour >= 1 && ptHour < 7;
+          const ptMins   = ((d.getUTCHours() + 24 + ptOffset) % 24) * 60 + d.getUTCMinutes();
+          return ptMins >= 60 && ptMins <= 390; // 1:00 AM = 60 mins, 6:30 AM = 390 mins
         }
 
-        const overnightBarsToday = [];
+        const windowBars = [];
         for (let i = 0; i < spyTS.length; i++) {
-          if (spyHighs[i] != null && spyLows[i] != null && isPTWindow(spyTS[i])) {
-            overnightBarsToday.push({ h: spyHighs[i], l: spyLows[i], v: spyVols[i] || 0 });
+          if (spyHighs[i] != null && spyLows[i] != null && isInWindow(spyTS[i])) {
+            windowBars.push({ h: spyHighs[i], l: spyLows[i], v: spyVols[i] || 0 });
           }
         }
-        console.log('SPY bars in PT window:', overnightBarsToday.length, 'of', spyTS.length, 'total bars');
+        console.log('SPY 1AM-6:30AM PT bars found:', windowBars.length);
 
-        // Fallback: if no bars found in PT window, use all pre-market bars (before 9:30 AM ET)
-        const barsToUse = overnightBarsToday.length > 0 ? overnightBarsToday : (() => {
-          const fb = [];
-          for (let i = 0; i < spyTS.length; i++) {
-            if (spyHighs[i] != null && spyLows[i] != null) {
-              const d = new Date(spyTS[i] * 1000);
-              const utcH = d.getUTCHours();
-              // Pre-market: before 13:30 UTC (9:30 AM ET EDT)
-              if (utcH < 13 || (utcH === 13 && d.getUTCMinutes() < 30)) {
-                fb.push({ h: spyHighs[i], l: spyLows[i], v: spyVols[i] || 0 });
-              }
-            }
-          }
-          console.log('SPY fallback pre-market bars:', fb.length);
-          return fb;
-        })();
-
-        if (barsToUse.length > 0) {
-          const oHigh   = Math.max(...barsToUse.map(b => b.h));
-          const oLow    = Math.min(...barsToUse.map(b => b.l));
-          const oVol    = barsToUse.reduce((s, b) => s + b.v, 0);
+        if (windowBars.length > 0) {
+          const oHigh = Math.max(...windowBars.map(b => b.h));
+          const oLow  = Math.min(...windowBars.map(b => b.l));
+          const oVol  = windowBars.reduce((s, b) => s + b.v, 0);
           const range   = oHigh - oLow;
 
           ctx.spy_range    = range.toFixed(2);
