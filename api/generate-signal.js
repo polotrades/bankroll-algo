@@ -38,10 +38,16 @@ export default async function handler(req, res) {
     };
 
     try {
-      // ── Fetch ES 5m (overnight) + SPY 30m in parallel ───────────────────
+      // ── Fetch ES 5m (overnight) + SPY 30m via Massive/Polygon ───────────────
+      const now = new Date();
+      const toDate   = now.toISOString().slice(0, 10);
+      const fromDate = new Date(now - 86400000).toISOString().slice(0, 10);
+      const massiveKey = process.env.MASSIVE_API_KEY;
+      const spyUrl = `https://api.polygon.io/v2/aggs/ticker/SPY/range/30/minute/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=100&apiKey=${massiveKey}`;
+
       const [esRes, spyRes] = await Promise.allSettled([
         fetchT('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }, 3000),
-        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/SPY?interval=30m&range=2d&includePrePost=true', { headers: YF_HEADERS }, 3000),
+        fetchT(spyUrl, {}, 4000),
       ]);
 
       // ── ES DATA ─────────────────────────────────────────────────────────
@@ -157,14 +163,16 @@ export default async function handler(req, res) {
       }
 
       // ── SPY 30M DATA ─────────────────────────────────────────────────────
-      const spyData  = spyRes.status === 'fulfilled' ? await spyRes.value.json() : null;
-      const spyQuote = spyData?.chart?.result?.[0]?.indicators?.quote?.[0];
-      const spyTS    = spyData?.chart?.result?.[0]?.timestamp || [];
+      const spyData    = spyRes.status === 'fulfilled' ? await spyRes.value.json() : null;
+      const spyResults = spyData?.results || [];
+      console.log('Massive SPY bars:', spyResults.length);
 
-      if (spyQuote) {
-        const spyHighs = spyQuote.high   || [];
-        const spyLows  = spyQuote.low    || [];
-        const spyVols  = spyQuote.volume || [];
+      if (spyResults.length > 0) {
+        // Polygon format: { t: ms timestamp, h, l, v }
+        const spyHighs = spyResults.map(b => b.h);
+        const spyLows  = spyResults.map(b => b.l);
+        const spyVols  = spyResults.map(b => b.v);
+        const spyTS    = spyResults.map(b => Math.floor(b.t / 1000)); // convert ms to seconds
 
         // Range: all 30M bars from 1:00 AM PT to 6:30 AM PT (market open)
         function isInWindow(ts) {
@@ -200,8 +208,8 @@ export default async function handler(req, res) {
             ? `$${range.toFixed(2)} — ✅ confirmed (≥$2.50)`
             : `$${range.toFixed(2)} — ❌ below $2.50 min`;
           ctx.spy_vol_tag   = ctx.spy_vol_ok
-            ? `${(oVol / 1000).toFixed(0)}k — ✅ confirmed (≥50k)`
-            : `${(oVol / 1000).toFixed(0)}k — ❌ below 50k min`;
+            ? `${(oVol / 1000).toFixed(1)}k — ✅ confirmed (≥50k)`
+            : `${(oVol / 1000).toFixed(1)}k — ❌ below 50k min`;
         }
       }
 
