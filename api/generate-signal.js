@@ -166,54 +166,43 @@ export default async function handler(req, res) {
         const spyLows  = spyQuote.low    || [];
         const spyVols  = spyQuote.volume || [];
 
-        // Target: 6:00 AM ET pre-market 30M bar (most important per Patrick's method)
-        // EDT = UTC-4 (summer) → 6:00 AM ET = 10:00 UTC
-        // EST = UTC-5 (winter) → 6:00 AM ET = 11:00 UTC
-        // Look for the bar whose ET hour is 6 (handles DST automatically)
-        function etHour(ts) {
+        // Overnight range: 1AM PT to 6AM PT (low to high)
+        // 1AM PT = 9:00 UTC (PDT/summer) or 8:00 UTC (PST/winter)
+        // 6AM PT = 14:00 UTC (PDT) or 13:00 UTC (PST)
+        function isPTWindow(ts) {
           const d = new Date(ts * 1000);
-          // Approximate DST: Mar 2nd Sun → Nov 1st Sun each year
           const yr = d.getUTCFullYear();
           const dstStart = new Date(Date.UTC(yr, 2, 8 - new Date(Date.UTC(yr, 2, 1)).getUTCDay()));
           const dstEnd   = new Date(Date.UTC(yr, 10, 1 - new Date(Date.UTC(yr, 10, 1)).getUTCDay()));
-          const offset = (d >= dstStart && d < dstEnd) ? -4 : -5;
-          return (d.getUTCHours() + 24 + offset) % 24;
+          const ptOffset = (d >= dstStart && d < dstEnd) ? -7 : -8;
+          const ptHour   = (d.getUTCHours() + 24 + ptOffset) % 24;
+          return ptHour >= 1 && ptHour < 6;
         }
 
-        // First: try to find the 6:00 AM ET bar specifically
-        let latestBar = null;
+        const overnightBarsToday = [];
         for (let i = 0; i < spyTS.length; i++) {
-          if (spyHighs[i] != null && spyLows[i] != null && etHour(spyTS[i]) === 6) {
-            const v = spyVols[i] || 0;
-            if (!latestBar || spyTS[i] > spyTS[latestBar._idx]) {
-              latestBar = { h: spyHighs[i], l: spyLows[i], v, _idx: i };
-            }
-          }
-        }
-        // Fallback: most recent non-zero bar
-        if (!latestBar) {
-          for (let i = spyTS.length - 1; i >= 0; i--) {
-            if (spyHighs[i] != null && spyLows[i] != null) {
-              const r = spyHighs[i] - spyLows[i];
-              const v = spyVols[i] || 0;
-              if (r > 0.01 || v > 0) { latestBar = { h: spyHighs[i], l: spyLows[i], v }; break; }
-            }
+          if (spyHighs[i] != null && spyLows[i] != null && isPTWindow(spyTS[i])) {
+            overnightBarsToday.push({ h: spyHighs[i], l: spyLows[i], v: spyVols[i] || 0 });
           }
         }
 
-        if (latestBar) {
-          const range      = latestBar.h - latestBar.l;
+        if (overnightBarsToday.length > 0) {
+          const oHigh   = Math.max(...overnightBarsToday.map(b => b.h));
+          const oLow    = Math.min(...overnightBarsToday.map(b => b.l));
+          const oVol    = overnightBarsToday.reduce((s, b) => s + b.v, 0);
+          const range   = oHigh - oLow;
+
           ctx.spy_range    = range.toFixed(2);
-          ctx.spy_volume   = latestBar.v;
+          ctx.spy_volume   = oVol;
           ctx.spy_range_ok = range >= 2.50;
-          ctx.spy_vol_ok   = latestBar.v >= 50000;
+          ctx.spy_vol_ok   = oVol >= 50000;
 
-          ctx.spy_range_tag  = ctx.spy_range_ok
+          ctx.spy_range_tag = ctx.spy_range_ok
             ? `$${range.toFixed(2)} — ✅ confirmed (≥$2.50)`
             : `$${range.toFixed(2)} — ❌ below $2.50 min`;
-          ctx.spy_vol_tag    = ctx.spy_vol_ok
-            ? `${(latestBar.v / 1000).toFixed(0)}k — ✅ confirmed (≥50k)`
-            : `${(latestBar.v / 1000).toFixed(0)}k — ❌ below 50k min`;
+          ctx.spy_vol_tag   = ctx.spy_vol_ok
+            ? `${(oVol / 1000).toFixed(0)}k — ✅ confirmed (≥50k)`
+            : `${(oVol / 1000).toFixed(0)}k — ❌ below 50k min`;
         }
       }
 
