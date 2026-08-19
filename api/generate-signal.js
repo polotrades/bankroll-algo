@@ -41,7 +41,7 @@ export default async function handler(req, res) {
       // ── Fetch ES 5m (overnight) + SPY 30m via Massive/Polygon ───────────────
       const [esRes, spyRes] = await Promise.allSettled([
         fetchT('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }, 3000),
-        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/SPY?interval=30m&range=1d&includePrePost=true', { headers: YF_HEADERS }, 4000),
+        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/SPY?interval=1m&range=1d&includePrePost=true', { headers: YF_HEADERS }, 4000),
       ]);
 
       // ── ES DATA ─────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ export default async function handler(req, res) {
       const spyData  = spyRes.status === 'fulfilled' ? await spyRes.value.json() : null;
       const spyQuote = spyData?.chart?.result?.[0]?.indicators?.quote?.[0];
       const spyTS    = spyData?.chart?.result?.[0]?.timestamp || [];
-      console.log('SPY 30m bars:', spyTS.length);
+      console.log('SPY 1m bars:', spyTS.length);
 
       if (spyQuote && spyTS.length > 0) {
         const spyHighs = spyQuote.high   || [];
@@ -198,8 +198,9 @@ export default async function handler(req, res) {
             const ptOffset = (d >= dstStart && d < dstEnd) ? -7 : -8;
             return ((d.getUTCHours() + 24 + ptOffset) % 24) * 60 + d.getUTCMinutes();
           }
+          // Sum 1m bars from 5:00AM–6:30AM PT = equivalent of 5AM, 5:30AM, 6AM 30m candles
           const oVol = windowBars
-            .filter(b => [300, 330, 360].includes(ptMinsOf(b.ts))) // 5:00, 5:30, 6:00 AM PT
+            .filter(b => ptMinsOf(b.ts) >= 300) // 5:00 AM PT onward
             .reduce((s, b) => s + b.v, 0);
           const range   = oHigh - oLow;
 
