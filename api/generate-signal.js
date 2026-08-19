@@ -189,7 +189,9 @@ export default async function handler(req, res) {
         if (windowBars.length > 0) {
           const oHigh = Math.max(...windowBars.map(b => b.h));
           const oLow  = Math.min(...windowBars.map(b => b.l));
-          const oVol  = windowBars.reduce((s, b) => s + b.v, 0);
+          // Volume = first 30-minute candle only (1:00 AM – 1:30 AM PT, first 30 bars)
+          const firstCandleBars = windowBars.slice(0, 30);
+          const oVol  = firstCandleBars.reduce((s, b) => s + b.v, 0);
           const range   = oHigh - oLow;
 
           ctx.spy_range    = range.toFixed(2);
