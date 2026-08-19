@@ -41,7 +41,7 @@ export default async function handler(req, res) {
       // ── Fetch ES 5m (overnight) + SPY 30m via Massive/Polygon ───────────────
       const [esRes, spyRes] = await Promise.allSettled([
         fetchT('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }, 3000),
-        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/SPY?interval=1m&range=1d&includePrePost=true', { headers: YF_HEADERS }, 4000),
+        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/SPY?interval=30m&range=1d&includePrePost=true', { headers: YF_HEADERS }, 4000),
       ]);
 
       // ── ES DATA ─────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ export default async function handler(req, res) {
       const spyData  = spyRes.status === 'fulfilled' ? await spyRes.value.json() : null;
       const spyQuote = spyData?.chart?.result?.[0]?.indicators?.quote?.[0];
       const spyTS    = spyData?.chart?.result?.[0]?.timestamp || [];
-      console.log('SPY 1m bars:', spyTS.length);
+      console.log('SPY 30m bars:', spyTS.length);
 
       if (spyQuote && spyTS.length > 0) {
         const spyHighs = spyQuote.high   || [];
@@ -189,16 +189,18 @@ export default async function handler(req, res) {
         if (windowBars.length > 0) {
           const oHigh = Math.max(...windowBars.map(b => b.h));
           const oLow  = Math.min(...windowBars.map(b => b.l));
-          // Volume = 5AM–6:30AM PT (last 3 x 30m candles before open)
-          const oVol  = windowBars.filter(b => {
-            const d = new Date(b.ts * 1000);
+          // Volume = 5AM, 5:30AM, 6AM candles only (3 x 30m bars before open)
+          function ptMinsOf(ts) {
+            const d = new Date(ts * 1000);
             const yr = d.getUTCFullYear();
             const dstStart = new Date(Date.UTC(yr, 2, 8 - new Date(Date.UTC(yr, 2, 1)).getUTCDay()));
             const dstEnd   = new Date(Date.UTC(yr, 10, 1 - new Date(Date.UTC(yr, 10, 1)).getUTCDay()));
             const ptOffset = (d >= dstStart && d < dstEnd) ? -7 : -8;
-            const ptMins   = ((d.getUTCHours() + 24 + ptOffset) % 24) * 60 + d.getUTCMinutes();
-            return ptMins >= 300 && ptMins < 390; // 5:00 AM = 300 mins, 6:30 AM = 390 mins
-          }).reduce((s, b) => s + b.v, 0);
+            return ((d.getUTCHours() + 24 + ptOffset) % 24) * 60 + d.getUTCMinutes();
+          }
+          const oVol = windowBars
+            .filter(b => [300, 330, 360].includes(ptMinsOf(b.ts))) // 5:00, 5:30, 6:00 AM PT
+            .reduce((s, b) => s + b.v, 0);
           const range   = oHigh - oLow;
 
           ctx.spy_range    = range.toFixed(2);
