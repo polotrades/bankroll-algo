@@ -628,13 +628,23 @@ function populateSignal(signal) {
     const signalDir = (signal.direction || '').toUpperCase(); // LONG or SHORT
     confGrid.innerHTML = confData.map((c, i) => {
       const v = c.value.toLowerCase();
-      const isBullish = v.includes('bullish') || v.includes('above') || v.includes('hh/hl') || v.includes('aligned bullish') || v.includes('✅');
-      const isBearish = v.includes('bearish') || v.includes('below') || v.includes('ll/lh') || v.includes('aligned bearish') || v.includes('❌');
-      // Aligned = confluence matches signal direction
-      const aligned = (signalDir === 'LONG' && isBullish) || (signalDir === 'SHORT' && isBearish);
-      const conflicting = (signalDir === 'LONG' && isBearish) || (signalDir === 'SHORT' && isBullish);
-      const iconColor = aligned ? '#0F6E56' : conflicting ? '#E05252' : '#8A8A8A';
-      const icon = aligned ? 'ti-circle-check' : conflicting ? 'ti-circle-x' : 'ti-minus';
+      const label = (c.label || '').toLowerCase();
+      // SPY rows are pass/fail, not directional — check confirmed vs failed
+      const isSPY = label.includes('spy');
+      let iconColor, icon;
+      if (isSPY) {
+        const passed = v.includes('confirmed') || v.includes('✅');
+        const failed = v.includes('below') || v.includes('❌');
+        iconColor = passed ? '#0F6E56' : failed ? '#E05252' : '#8A8A8A';
+        icon = passed ? 'ti-circle-check' : failed ? 'ti-circle-x' : 'ti-minus';
+      } else {
+        const isBullish = v.includes('bullish') || v.includes('above') || v.includes('hh/hl') || v.includes('aligned bullish');
+        const isBearish = v.includes('bearish') || v.includes('below') || v.includes('ll/lh') || v.includes('aligned bearish');
+        const aligned = (signalDir === 'LONG' && isBullish) || (signalDir === 'SHORT' && isBearish);
+        const conflicting = (signalDir === 'LONG' && isBearish) || (signalDir === 'SHORT' && isBullish);
+        iconColor = aligned ? '#0F6E56' : conflicting ? '#E05252' : '#8A8A8A';
+        icon = aligned ? 'ti-circle-check' : conflicting ? 'ti-circle-x' : 'ti-minus';
+      }
       return `<div class="conf-item conf-visible">
         <div class="conf-item-text" style="gap:8px">
           <i class="ti ${icon}" style="color:${iconColor};font-size:14px;flex-shrink:0"></i>
