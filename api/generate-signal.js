@@ -181,7 +181,7 @@ export default async function handler(req, res) {
         const windowBars = [];
         for (let i = 0; i < spyTS.length; i++) {
           if (spyHighs[i] != null && spyLows[i] != null && isInWindow(spyTS[i])) {
-            windowBars.push({ h: spyHighs[i], l: spyLows[i], v: spyVols[i] || 0 });
+            windowBars.push({ ts: spyTS[i], h: spyHighs[i], l: spyLows[i], v: spyVols[i] || 0 });
           }
         }
         console.log('SPY 1AM-6:30AM PT bars found:', windowBars.length);
@@ -189,9 +189,16 @@ export default async function handler(req, res) {
         if (windowBars.length > 0) {
           const oHigh = Math.max(...windowBars.map(b => b.h));
           const oLow  = Math.min(...windowBars.map(b => b.l));
-          // Volume = first 30-minute candle only (1:00 AM – 1:30 AM PT, first 30 bars)
-          const firstCandleBars = windowBars.slice(0, 30);
-          const oVol  = firstCandleBars.reduce((s, b) => s + b.v, 0);
+          // Volume = 5AM–6:30AM PT (last 3 x 30m candles before open)
+          const oVol  = windowBars.filter(b => {
+            const d = new Date(b.ts * 1000);
+            const yr = d.getUTCFullYear();
+            const dstStart = new Date(Date.UTC(yr, 2, 8 - new Date(Date.UTC(yr, 2, 1)).getUTCDay()));
+            const dstEnd   = new Date(Date.UTC(yr, 10, 1 - new Date(Date.UTC(yr, 10, 1)).getUTCDay()));
+            const ptOffset = (d >= dstStart && d < dstEnd) ? -7 : -8;
+            const ptMins   = ((d.getUTCHours() + 24 + ptOffset) % 24) * 60 + d.getUTCMinutes();
+            return ptMins >= 300 && ptMins < 390; // 5:00 AM = 300 mins, 6:30 AM = 390 mins
+          }).reduce((s, b) => s + b.v, 0);
           const range   = oHigh - oLow;
 
           ctx.spy_range    = range.toFixed(2);
