@@ -506,11 +506,13 @@ function showEmpty() {
   const empty     = document.getElementById('signal-empty');
   const checklist = document.getElementById('trade-checklist');
   const szCard    = document.getElementById('sz-card');
+  const spyCard = document.getElementById('spy-input-card');
   if (loading)   loading.style.display   = 'none';
   if (body)      body.style.display      = 'none';
   if (empty)     empty.style.display     = 'block';
   if (checklist) checklist.style.display = 'none';
   if (szCard)    szCard.style.display    = 'none';
+  if (spyCard)   spyCard.style.display   = 'none';
 }
 
 async function loadSignal() {
@@ -548,10 +550,22 @@ async function loadSignal() {
     const todayKey = 'ba_signal_' + new Date().toISOString().slice(0, 10);
     try { localStorage.setItem(todayKey, JSON.stringify(data.signal)); } catch {}
 
-    const body = document.getElementById('signal-body');
-    const empty = document.getElementById('signal-empty');
-    if (body)  body.style.display  = 'block';
-    if (empty) empty.style.display = 'none';
+    const body    = document.getElementById('signal-body');
+    const empty   = document.getElementById('signal-empty');
+    const spyCard = document.getElementById('spy-input-card');
+    if (body)    body.style.display    = 'block';
+    if (empty)   empty.style.display   = 'none';
+    if (spyCard) spyCard.style.display = 'block';
+    // Restore saved SPY inputs for today
+    try {
+      const saved = JSON.parse(localStorage.getItem('ba_spy_inputs_' + new Date().toISOString().slice(0,10)) || 'null');
+      if (saved) {
+        const ri = document.getElementById('spy-range-input');
+        const vi = document.getElementById('spy-vol-input');
+        if (ri && saved.range) ri.value = saved.range;
+        if (vi && saved.vol)   vi.value = saved.vol;
+      }
+    } catch {}
     populateSignal(data.signal);
 
   } catch (err) {
@@ -666,6 +680,38 @@ function populateSignal(signal) {
 }
 
 // ── Trade Checklist ───────────────────────────────────────────────────────
+function applySpyInputs() {
+  const rangeVal = parseFloat(document.getElementById('spy-range-input')?.value || '0');
+  const volVal   = parseFloat(document.getElementById('spy-vol-input')?.value   || '0');
+  if (!rangeVal && !volVal) return;
+
+  // Store in localStorage for the day
+  const key = 'ba_spy_inputs_' + new Date().toISOString().slice(0,10);
+  localStorage.setItem(key, JSON.stringify({ range: rangeVal, vol: volVal }));
+
+  // Update signal confluences with manual values
+  const todayKey = 'ba_signal_' + new Date().toISOString().slice(0,10);
+  try {
+    const cached = JSON.parse(localStorage.getItem(todayKey) || 'null');
+    if (cached && cached.market_context?.confluences) {
+      const confs = cached.market_context.confluences;
+      const rIdx = confs.findIndex(c => c.label.toLowerCase().includes('spy 30m range'));
+      const vIdx = confs.findIndex(c => c.label.toLowerCase().includes('spy 30m vol'));
+      const rOk  = rangeVal >= 2.50;
+      const vOk  = volVal   >= 50;
+      if (rIdx >= 0) confs[rIdx].value = `$${rangeVal.toFixed(2)} — ${rOk ? '✅ confirmed (≥$2.50)' : '❌ below $2.50 min'}`;
+      if (vIdx >= 0) confs[vIdx].value = `${volVal.toFixed(1)}k — ${vOk ? '✅ confirmed (≥50k)' : '❌ below 50k min'}`;
+      cached.no_trade = !(rOk && vOk && cached.market_context?.imb_direction !== 'NEUTRAL');
+      cached.no_trade_reason = !rOk ? `SPY range $${rangeVal.toFixed(2)} below $2.50 min.` : !vOk ? `SPY volume ${volVal}k below 50k min.` : null;
+      localStorage.setItem(todayKey, JSON.stringify(cached));
+      populateSignal(cached);
+      // Flash button
+      const btn = document.querySelector('#spy-input-card button');
+      if (btn) { btn.textContent = 'Applied ✓'; btn.style.background = '#1D9E75'; setTimeout(() => { btn.textContent = 'Apply'; btn.style.background = '#534AB7'; }, 2000); }
+    }
+  } catch(e) { console.error('applySpyInputs:', e); }
+}
+
 function renderChecklist(signal) {
   const card      = document.getElementById('trade-checklist');
   const itemsEl   = document.getElementById('checklist-items');
@@ -855,10 +901,12 @@ async function adminRegenerateSignal() {
     if (signal) {
       const todayKey = 'ba_signal_' + new Date().toISOString().slice(0, 10);
       try { localStorage.setItem(todayKey, JSON.stringify(signal)); } catch {}
-      const bodyEl  = document.getElementById('signal-body');
-      const emptyEl = document.getElementById('signal-empty');
-      if (bodyEl)  bodyEl.style.display  = 'block';
-      if (emptyEl) emptyEl.style.display = 'none';
+      const bodyEl    = document.getElementById('signal-body');
+      const emptyEl   = document.getElementById('signal-empty');
+      const spyCardEl = document.getElementById('spy-input-card');
+      if (bodyEl)    bodyEl.style.display    = 'block';
+      if (emptyEl)   emptyEl.style.display   = 'none';
+      if (spyCardEl) spyCardEl.style.display = 'block';
       populateSignal(signal);
       txt.textContent = 'Signal Regenerated ✓';
       btn.style.background = '#1D9E75';

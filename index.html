@@ -183,6 +183,22 @@
     </div>
 
     <!-- Trade Checklist -->
+    <!-- SPY Manual Input -->
+    <div class="card" id="spy-input-card" style="margin-top:12px;display:none">
+      <div class="card-label" style="margin-bottom:12px">SPY Pre-Market Check</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Range ($)</div>
+          <input type="number" id="spy-range-input" step="0.01" placeholder="e.g. 4.40" style="width:100%;padding:9px 11px;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:14px;outline:none">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Volume (k)</div>
+          <input type="number" id="spy-vol-input" step="0.1" placeholder="e.g. 440" style="width:100%;padding:9px 11px;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:14px;outline:none">
+        </div>
+      </div>
+      <button onclick="applySpyInputs()" style="width:100%;padding:10px;background:#534AB7;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Apply</button>
+    </div>
+
     <div class="card" id="trade-checklist" style="margin-top:12px;display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <span class="card-label" style="margin-bottom:0">Trade Checklist</span>
@@ -433,7 +449,7 @@
 
 </div>
 
-<script src="app.js?v=17"></script>
+<script src="app.js?v=18"></script>
 <script>
 // ── TopStep Sizing Card ──────────────────────────────────────────
 // Reads the Trade Checklist verdict and shows contract size + math
