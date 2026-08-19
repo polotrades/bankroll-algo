@@ -917,6 +917,17 @@ async function adminRegenerateSignal() {
       if (emptyEl)   emptyEl.style.display   = 'none';
       if (spyCardEl) spyCardEl.style.display = 'block';
       populateSignal(signal);
+      // Auto-re-apply any saved SPY inputs from today
+      try {
+        const savedSpy = JSON.parse(localStorage.getItem('ba_spy_inputs_' + new Date().toISOString().slice(0,10)) || 'null');
+        if (savedSpy) {
+          const ri = document.getElementById('spy-range-input');
+          const vi = document.getElementById('spy-vol-input');
+          if (ri && savedSpy.range) { ri.value = savedSpy.range; }
+          if (vi && savedSpy.vol)   { vi.value = savedSpy.vol;   }
+          applySpyInputs();
+        }
+      } catch {}
       txt.textContent = 'Signal Regenerated ✓';
       btn.style.background = '#1D9E75';
       setTimeout(() => { btn.disabled = false; txt.textContent = 'Regenerate Signal Now'; btn.style.background = ''; }, 3000);
