@@ -38,10 +38,9 @@ export default async function handler(req, res) {
     };
 
     try {
-      // ── Fetch ES 5m (overnight) + SPY 30m via Massive/Polygon ───────────────
-      const [esRes, spyRes] = await Promise.allSettled([
+      // ── Fetch ES 5m (overnight) ───────────────────────────────────────────
+      const [esRes] = await Promise.allSettled([
         fetchT('https://query2.finance.yahoo.com/v8/finance/chart/ES=F?interval=5m&range=1d&includePrePost=true', { headers: YF_HEADERS }, 3000),
-        fetchT('https://query2.finance.yahoo.com/v8/finance/chart/SPY?interval=1m&range=1d&includePrePost=true', { headers: YF_HEADERS }, 4000),
       ]);
 
       // ── ES DATA ─────────────────────────────────────────────────────────
@@ -156,62 +155,12 @@ export default async function handler(req, res) {
         }
       }
 
-      // ── SPY 30M DATA ─────────────────────────────────────────────────────
-      const spyData  = spyRes.status === 'fulfilled' ? await spyRes.value.json() : null;
-      const spyQuote = spyData?.chart?.result?.[0]?.indicators?.quote?.[0];
-      const spyTS    = spyData?.chart?.result?.[0]?.timestamp || [];
-      console.log('SPY 1m bars:', spyTS.length);
-
-      if (spyQuote && spyTS.length > 0) {
-        const spyHighs = spyQuote.high   || [];
-        const spyLows  = spyQuote.low    || [];
-        const spyVols  = spyQuote.volume || [];
-
-        // Range: all 30M bars from 1:00 AM PT to 6:30 AM PT (market open)
-        function isInWindow(ts) {
-          const d = new Date(ts * 1000);
-          const yr = d.getUTCFullYear();
-          const dstStart = new Date(Date.UTC(yr, 2, 8 - new Date(Date.UTC(yr, 2, 1)).getUTCDay()));
-          const dstEnd   = new Date(Date.UTC(yr, 10, 1 - new Date(Date.UTC(yr, 10, 1)).getUTCDay()));
-          const ptOffset = (d >= dstStart && d < dstEnd) ? -7 : -8;
-          const ptMins   = ((d.getUTCHours() + 24 + ptOffset) % 24) * 60 + d.getUTCMinutes();
-          return ptMins >= 60 && ptMins <= 390; // 1:00 AM = 60 mins, 6:30 AM = 390 mins
-        }
-
-        const windowBars = [];
-        for (let i = 0; i < spyTS.length; i++) {
-          if (spyHighs[i] != null && spyLows[i] != null && isInWindow(spyTS[i])) {
-            windowBars.push({ ts: spyTS[i], h: spyHighs[i], l: spyLows[i], v: spyVols[i] || 0 });
-          }
-        }
-        console.log('SPY 1AM-6:30AM PT bars found:', windowBars.length);
-
-        if (windowBars.length > 0) {
-          const oHigh = Math.max(...windowBars.map(b => b.h));
-          const oLow  = Math.min(...windowBars.map(b => b.l));
-          // Volume = 5AM, 5:30AM, 6AM candles only (3 x 30m bars before open)
-          // Volume = last 90 bars (5AM–6:30AM PT = 3 x 30m candles before open)
-          const oVol = windowBars.slice(-90).reduce((s, b) => s + b.v, 0);
-          const range   = oHigh - oLow;
-
-          ctx.spy_range    = range.toFixed(2);
-          ctx.spy_volume   = oVol;
-          ctx.spy_range_ok = range >= 2.50;
-          ctx.spy_vol_ok   = oVol >= 50000;
-
-          ctx.spy_range_tag = ctx.spy_range_ok
-            ? `$${range.toFixed(2)} — ✅ confirmed (≥$2.50)`
-            : `$${range.toFixed(2)} — ❌ below $2.50 min`;
-          ctx.spy_vol_tag   = ctx.spy_vol_ok
-            ? `${(oVol / 1000).toFixed(1)}k — ✅ confirmed (≥50k)`
-            : `${(oVol / 1000).toFixed(1)}k — ❌ below 50k min`;
-        }
-      }
+      // SPY range/volume are manual — user inputs from TradingView each morning
 
       // ── Final signal determination ────────────────────────────────────────
-      const hasDirection  = ctx.imb_direction === 'LONG' || ctx.imb_direction === 'SHORT';
-      const bothSPYPass   = ctx.spy_range_ok && ctx.spy_vol_ok;
-      ctx.no_trade        = !hasDirection || !bothSPYPass;
+      const hasDirection = ctx.imb_direction === 'LONG' || ctx.imb_direction === 'SHORT';
+      // SPY is manual — signal starts as no_trade until user applies SPY values
+      ctx.no_trade = !hasDirection;
 
       // Confidence from imbalance edge %
       const weightAbove = parseFloat(ctx.weight_above);
@@ -220,29 +169,17 @@ export default async function handler(req, res) {
       const edge        = totalWeight > 0 ? Math.abs(weightAbove - weightBelow) / totalWeight : 0;
 
       let confidence, hitRate;
-      if (ctx.no_trade) {
+      if (!hasDirection) {
         confidence = 'Low'; hitRate = 35;
-      } else if (edge >= 0.50 && bothSPYPass) {
+      } else if (edge >= 0.50) {
         confidence = 'High';   hitRate = 75;
-      } else if (edge >= 0.20 && bothSPYPass) {
+      } else if (edge >= 0.20) {
         confidence = 'Medium'; hitRate = 60;
       } else {
         confidence = 'Low';    hitRate = 35;
       }
 
-      // No-trade reason
-      let noTradeReason = null;
-      if (ctx.no_trade) {
-        if (!hasDirection) {
-          noTradeReason = 'Imbalances tied — no directional edge. Skip today.';
-        } else if (!ctx.spy_range_ok && !ctx.spy_vol_ok) {
-          noTradeReason = `SPY 30M range ($${ctx.spy_range}) and volume (${Math.round(ctx.spy_volume/1000)}k) both below threshold. No confirmation.`;
-        } else if (!ctx.spy_range_ok) {
-          noTradeReason = `SPY 30M range $${ctx.spy_range} — below $2.50 minimum. No trade.`;
-        } else {
-          noTradeReason = `SPY 30M volume ${Math.round(ctx.spy_volume/1000)}k — below 50k minimum. No trade.`;
-        }
-      }
+      const noTradeReason = !hasDirection ? 'Imbalances tied — no directional edge. Skip today.' : null;
 
       // Confluences array for frontend
       ctx.confluences = [
@@ -270,11 +207,11 @@ export default async function handler(req, res) {
         },
         {
           label: 'SPY 30M Range',
-          value: ctx.spy_range_tag || 'No SPY data'
+          value: 'Enter manually above ↑'
         },
         {
           label: 'SPY 30M Volume',
-          value: ctx.spy_vol_tag || 'No SPY data'
+          value: 'Enter manually above ↑'
         },
       ];
 
