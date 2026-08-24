@@ -223,7 +223,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'market')      initCharts();
-  if (name === 'calendar')   { buildCalendar(); updateCalStats(); }
+  if (name === 'calendar')   { buildCalendar(); updateCalStats(); updateStats(); }
   if (name === 'journal')    { initJournalForm(); renderJournal(); renderWeeklyReview(); }
   if (name === 'performance') { updateStats(); updateCalStats(); renderPerfWeeklyPnL(); }
 }
@@ -1601,7 +1601,7 @@ Promise.all([
       const localCount = Object.keys(local).filter(k => k !== '_ym').length;
       const redisCount = Object.keys(clean).length;
       setter(clean);
-      if (redisCount >= localCount) {
+      if (redisCount > 0 && redisCount >= localCount) {
         saveMonthData(sess, TODAY_YEAR, TODAY_MONTH, clean);
       }
     } else if (!_ym) {
