@@ -518,6 +518,8 @@ async function loadSignal() {
   // Start in empty/pending state — no spinner blocking the page
   showEmpty();
   buildCalendar();
+  updateStats();
+  updateCalStats();
   applyBacktestUI('ny');
   buildBacktestCard('ny');
 
