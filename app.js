@@ -225,7 +225,7 @@ function switchTab(name) {
   if (name === 'market')      initCharts();
   if (name === 'calendar')   { buildCalendar(); updateCalStats(); }
   if (name === 'journal')    { initJournalForm(); renderJournal(); renderWeeklyReview(); }
-  if (name === 'performance') { updateCalStats(); renderPerfWeeklyPnL(); }
+  if (name === 'performance') { updateStats(); updateCalStats(); renderPerfWeeklyPnL(); }
 }
 
 // ── Journal ───────────────────────────────────────────────────────────────
@@ -1596,9 +1596,14 @@ Promise.all([
     if (!Object.keys(data).length) return;
     const { _ym, ...clean } = data;
     if (_ym === CUR_YM) {
-      // Current month data — apply to memory + current month slot
+      // Current month data — only overwrite localStorage if Redis has MORE data than local
+      const local = loadMonthData(sess, TODAY_YEAR, TODAY_MONTH);
+      const localCount = Object.keys(local).filter(k => k !== '_ym').length;
+      const redisCount = Object.keys(clean).length;
       setter(clean);
-      saveMonthData(sess, TODAY_YEAR, TODAY_MONTH, clean);
+      if (redisCount >= localCount) {
+        saveMonthData(sess, TODAY_YEAR, TODAY_MONTH, clean);
+      }
     } else if (!_ym) {
       // No tag = old data from before tagging was added → save to previous month
       const prevMonth = TODAY_MONTH === 0 ? 11 : TODAY_MONTH - 1;
