@@ -978,7 +978,9 @@ function loadMonthData(sess, y, m) {
 }
 function saveMonthData(sess, y, m, r) {
   try {
-    localStorage.setItem(monthKey(sess, y, m), JSON.stringify(r));
+    const ym = `${y}-${String(m+1).padStart(2,'0')}`;
+    const tagged = { ...r, _ym: ym };
+    localStorage.setItem(monthKey(sess, y, m), JSON.stringify(tagged));
   } catch {}
 }
 
