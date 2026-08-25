@@ -523,6 +523,9 @@ async function loadSignal() {
   applyBacktestUI('ny');
   buildBacktestCard('ny');
 
+  // Signal only shows after manual generate — always start empty on page load
+  return;
+
   // Weekends: cron doesn't fire, no signal available
   const day = new Date().getDay();
   if (day === 0 || day === 6) return;
