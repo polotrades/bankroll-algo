@@ -1499,7 +1499,7 @@ const journalEntries = [
   { result:'WIN', direction:'LONG', date:'June 1, 2026', pnl:'+$450', pts:'+9 pts', tags:['Calm','Followed Plan'], well:'Solid execution across the board.', improve:'None — clean trade.' },
 ];
 const jGrid = document.getElementById('journal-grid');
-journalEntries.forEach(e => {
+if (jGrid) journalEntries.forEach(e => {
   const isWin = e.result === 'WIN', isLong = e.direction === 'LONG';
   jGrid.innerHTML += `<div class="journal-card">
     <div class="jc-badges">
