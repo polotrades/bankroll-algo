@@ -1083,6 +1083,7 @@ function getShortWins()   { return Object.values(getResults()).filter(v => v ===
 function getShortLosses() { return Object.values(getResults()).filter(v => v === 'sl').length; }
 
 function updateStats() {
+  console.log('[updateStats] called — wins:', getWins(), 'localStorage key:', 'ba_res_ny_' + TODAY_YEAR + '_' + String(TODAY_MONTH+1).padStart(2,'0'), 'data:', JSON.stringify(loadMonthData('ny', TODAY_YEAR, TODAY_MONTH)));
   // If "All Time" filter is active, aggregate all months; otherwise use current calendar month
   const activeFilter = document.querySelector('.mf-btn.active')?.textContent.trim() || '';
   let w, l, lw, ll, sw, sl;
@@ -1623,4 +1624,12 @@ Promise.all([
   apply(asia,   r => { asiaResults   = r; }, 'asia');
   buildCalendar();
   updateStats();
+  console.log('[Redis] updateStats done — wins:', getWins(), 'localStorage:', JSON.stringify(loadMonthData('ny', TODAY_YEAR, TODAY_MONTH)));
 });
+
+// Hard fallback: re-run after all async ops settle (catches any race condition)
+setTimeout(() => {
+  updateStats();
+  updateCalStats();
+  console.log('[Fallback] updateStats — wins:', getWins(), 'localStorage:', JSON.stringify(loadMonthData('ny', TODAY_YEAR, TODAY_MONTH)));
+}, 1500);
