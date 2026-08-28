@@ -619,6 +619,22 @@ function populateSignal(signal) {
     if (confEl.parentElement) confEl.parentElement.insertAdjacentElement('afterend', banner);
   }
 
+  // ASB/FVG conflict warning
+  const existingConflict = document.getElementById('conflict-banner');
+  if (existingConflict) existingConflict.remove();
+  const imbDir   = (signal.market_context?.imb_direction || '').toUpperCase();
+  const accumPos = (signal.market_context?.confluences?.find(c => c.label === 'Accum. Breakout')?.value || '').toLowerCase();
+  const asbLong  = accumPos.includes('above');
+  const asbShort = accumPos.includes('below');
+  const conflict = (imbDir === 'LONG' && asbShort) || (imbDir === 'SHORT' && asbLong);
+  if (conflict && confEl) {
+    const cb = document.createElement('div');
+    cb.id = 'conflict-banner';
+    cb.style.cssText = 'margin:8px 0 4px;padding:10px 14px;background:#FFF8E6;border:0.5px solid #E6B84A;border-radius:8px;display:flex;align-items:center;gap:8px';
+    cb.innerHTML = `<span style="font-size:15px">⚠️</span><div><div style="font-size:13px;font-weight:500;color:#854F0B">ASB/FVG Conflict</div><div style="font-size:11px;color:#6B3F00;margin-top:1px">Imbalance edge (${imbDir}) disagrees with ASB breakout direction — track this setup, consider skipping.</div></div>`;
+    if (confEl.parentElement) confEl.parentElement.insertAdjacentElement('afterend', cb);
+  }
+
   // TP / SL / RR
   const tpEl = document.getElementById('tp-val');   if (tpEl) tpEl.textContent = signal.take_profit || '—';
   const slEl = document.getElementById('sl-val');   if (slEl) slEl.textContent = signal.stop_loss   || '—';
@@ -713,11 +729,11 @@ function applySpyInputs() {
       const rIdx = confs.findIndex(c => c.label.toLowerCase().includes('spy 30m range'));
       const vIdx = confs.findIndex(c => c.label.toLowerCase().includes('spy 30m vol'));
       const rOk  = rangeVal >= 2.50;
-      const vOk  = volVal   >= 50000;
+      const vOk  = volVal   >= 40000;
       if (rIdx >= 0) confs[rIdx].value = `$${rangeVal.toFixed(2)} — ${rOk ? '✅ confirmed (≥$2.50)' : '❌ below $2.50 min'}`;
-      if (vIdx >= 0) confs[vIdx].value = `${volVal.toFixed(1)}k — ${vOk ? '✅ confirmed (≥50k)' : '❌ below 50k min'}`;
+      if (vIdx >= 0) confs[vIdx].value = `${(volVal/1000).toFixed(1)}k — ${vOk ? '✅ confirmed (≥40k)' : '❌ below 40k min'}`;
       cached.no_trade = !(rOk && vOk && cached.market_context?.imb_direction !== 'NEUTRAL');
-      cached.no_trade_reason = !rOk ? `SPY range $${rangeVal.toFixed(2)} below $2.50 min.` : !vOk ? `SPY volume ${volVal}k below 50k min.` : null;
+      cached.no_trade_reason = !rOk ? `SPY range $${rangeVal.toFixed(2)} below $2.50 min.` : !vOk ? `SPY volume below 40k min.` : null;
       localStorage.setItem(todayKey, JSON.stringify(cached));
       populateSignal(cached);
       // Flash button
@@ -768,7 +784,7 @@ function renderChecklist(signal) {
     },
     {
       label: 'SPY 30M Volume',
-      desc:  'Must be ≥ 50k',
+      desc:  'Must be ≥ 40k',
       pass:  spyVol.includes('✅') || spyVol.includes('confirmed')
     },
   ];
