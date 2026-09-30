@@ -1,3 +1,4 @@
 blender/renders/
 *.blend1
 __pycache__/
+roblox/sourcemap.json

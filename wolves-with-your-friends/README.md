@@ -12,7 +12,8 @@ Design doc: https://claude.ai/code/artifact/6cd9f355-ac00-49a9-863d-b4de69d8489c
 | --- | --- |
 | `blender/` | Python scripts that build every character in Blender, plus the saved `.blend` scenes |
 | `renders/` | Preview renders |
-| `roblox/` | The Roblox game (Rojo project) |
+| `blender/export/` | Roblox-ready FBX files + baked textures (`python3 export_roblox.py`) |
+| `roblox/` | The Roblox game: open `roblox/WolvesWithYourFriends.rbxl` in Studio, see `roblox/README.md` |
 
 ## Rebuilding the characters
 

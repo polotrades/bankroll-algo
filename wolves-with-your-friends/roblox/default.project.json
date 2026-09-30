@@ -1,0 +1,32 @@
+{
+  "name": "WolvesWithYourFriends",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": { "$path": "src/shared" }
+    },
+    "ServerScriptService": {
+      "Server": { "$path": "src/server" }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": { "$path": "src/client" }
+      }
+    },
+    "Players": {
+      "$properties": { "CharacterAutoLoads": true }
+    },
+    "Lighting": {
+      "$properties": {
+        "ClockTime": 17.6,
+        "Brightness": 2.5,
+        "EnvironmentDiffuseScale": 0.6,
+        "EnvironmentSpecularScale": 0.6
+      },
+      "Atmosphere": {
+        "$className": "Atmosphere",
+        "$properties": { "Density": 0.28, "Haze": 1.4, "Glare": 0.6 }
+      }
+    }
+  }
+}
